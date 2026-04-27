@@ -160,7 +160,7 @@
     const email = (getAuthEl('authEmail')?.value || '').trim();
     if(!email) return alert('Isi email dulu, lalu klik Forgot / Reset Password.');
 
-    const redirectTo = window.location.origin + window.location.pathname;
+    const redirectTo = 'https://editorproductpro.com/app.html';
     const { error } = await supabaseClient.auth.resetPasswordForEmail(email, { redirectTo });
     if(error) return alert(error.message);
 
