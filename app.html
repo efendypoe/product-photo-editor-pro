@@ -241,8 +241,7 @@
 
     const linkError = getUrlParamFromHashOrSearch('error_description') || getUrlParamFromHashOrSearch('error');
     if(linkError){
-      alert('Reset link bermasalah: ' + decodeURIComponent(String(linkError).replace(/\+/g,' ')) + '
-Silakan kirim ulang link Forgot / Reset Password.');
+      alert('Reset link bermasalah: ' + decodeURIComponent(String(linkError).replace(/\+/g,' ')) + '\nSilakan kirim ulang link Forgot / Reset Password.');
       cleanRecoveryUrl();
     }
 
