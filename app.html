@@ -75,6 +75,49 @@
 </div>
 <script>
 (() => {
+  // === LIMIT EXPORT SYSTEM ===
+  const FREE_DAILY_LIMIT = 5;
+  const IS_PRO_USER = localStorage.getItem('pep_user_plan') === 'pro';
+
+  function getTodayKey(){
+    const d = new Date();
+    return d.getFullYear() + '-' + (d.getMonth()+1) + '-' + d.getDate();
+  }
+
+  function getExportData(){
+    try{
+      return JSON.parse(localStorage.getItem('exportLimit') || '{}');
+    }catch(e){
+      return {};
+    }
+  }
+
+  function saveExportData(data){
+    localStorage.setItem('exportLimit', JSON.stringify(data));
+  }
+
+  function getTodayExportCount(){
+    const today = getTodayKey();
+    const data = getExportData();
+    return Number(data[today] || 0);
+  }
+
+  function canExport(){
+    if(IS_PRO_USER) return true;
+    return getTodayExportCount() < FREE_DAILY_LIMIT;
+  }
+
+  function increaseExport(){
+    if(IS_PRO_USER) return;
+    const today = getTodayKey();
+    const data = getExportData();
+    data[today] = Number(data[today] || 0) + 1;
+    saveExportData(data);
+  }
+
+  function showUpgradePopup(){
+    alert('Free limit reached. You have used 5 exports today. Upgrade to Pro for unlimited export.');
+  }
   const fonts=['Arial','Verdana','Tahoma','Trebuchet MS','Times New Roman','Georgia','Courier New','Consolas','Segoe UI','Calibri','Cambria','Impact'];
   const state={images:[],currentIndex:0,selectedId:null,selectedType:null,action:null,history:[],redo:[]};
   const $=id=>document.getElementById(id);
@@ -202,9 +245,53 @@
   window.addEventListener('mousemove',e=>{if(!state.action)return;const dx=e.clientX-state.action.startX,dy=e.clientY-state.action.startY;if(state.action.kind==='image'){state.images.forEach(img=>{ensureImageTransform(img);img.transform.x=clamp(state.action.originX+dx/state.action.rect.width*100,-100,200);img.transform.y=clamp(state.action.originY+dy/state.action.rect.height*100,-100,200)});refreshStage();return}const active=currentImage()?.items.find(it=>it.id===state.action.id);if(!active)return;state.images.forEach(photo=>{const o=photo.items.find(it=>it.group===state.action.group);if(!o||o.locked)return;if(state.action.mode==='move'){o.x=clamp((state.action.originLeftPx+dx)/state.action.rect.width*100,0,100);o.y=clamp((state.action.originTopPx+dy)/state.action.rect.height*100,0,100);o.scale=state.action.originScale;o.boxWidth=state.action.originBoxWidth;o.boxHeight=state.action.originBoxHeight}else if(state.action.mode==='handle'){const h=state.action.handle;if(o.type==='text'&&['ml','mr','mt','mb'].includes(h)){const sf=(o.scale/100)||1;if(h==='ml'||h==='mr')o.boxWidth=Math.max(30,state.action.originBoxWidth+(h==='ml'?-dx:dx)/sf);if(h==='mt'||h==='mb')o.boxHeight=Math.max(20,state.action.originBoxHeight+(h==='mt'?-dy:dy)/sf)}else if(['tl','tr','bl','br'].includes(h)){const node=el.stageInner.querySelector(`.overlay[data-id="${active.id}"]`);if(!node)return;const r=node.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2,d1=Math.hypot(state.action.startX-cx,state.action.startY-cy),d2=Math.hypot(e.clientX-cx,e.clientY-cy);o.scale=clamp(state.action.originScale*(d2/(d1||1)),5,1000)}}else if(state.action.mode==='rotate'){const node=el.stageInner.querySelector(`.overlay[data-id="${active.id}"]`);if(!node)return;const r=node.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2,a1=Math.atan2(state.action.startY-cy,state.action.startX-cx),a2=Math.atan2(e.clientY-cy,e.clientX-cx);o.rotate=state.action.originRotate+(a2-a1)*180/Math.PI}});const currentActive=currentImage()?.items.find(it=>it.id===state.action.id);if(currentActive)updateOverlay(currentActive)});
   window.addEventListener('mouseup',()=>{if(state.action){save();state.action=null;renderImage(state.currentIndex)}});
   window.addEventListener('keydown',e=>{const tag=document.activeElement?.tagName?.toLowerCase(),typing=tag==='input'||tag==='textarea'||tag==='select';if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();undo();return}if(!typing&&(e.key==='Delete'||e.key==='Backspace')){if(state.selectedId){e.preventDefault();deleteSelected();return}if(state.images.length){e.preventDefault();save();state.images.splice(state.currentIndex,1);if(state.currentIndex>=state.images.length)state.currentIndex=Math.max(0,state.images.length-1);state.selectedId=null;state.selectedType=null;el.imgCount.textContent=state.images.length;if(state.images.length){renderThumbs();renderImage(state.currentIndex)}else{renderThumbs();clearStage();el.imagesInput.value=''}el.statusText.textContent='Image deleted.'}}});
-  el.downloadCurrentBtn.addEventListener('click',async()=>{if(!currentImage()){alert('No images yet.');return}const blob=await exportImageAt(state.currentIndex);downloadBlob(blob,outName(currentImage().name))});el.downloadAllBtn.addEventListener('click',async()=>{if(!state.images.length){alert('No images yet.');return}const keep=state.currentIndex;for(let i=0;i<state.images.length;i++){renderImage(i);const blob=await exportImageAt(i);downloadBlob(blob,outName(state.images[i].name));await wait(250)}renderImage(keep)});
+  el.downloadCurrentBtn.addEventListener('click',async()=>{
+    if(!currentImage()){alert('No images yet.');return}
+    if(!canExport()){showUpgradePopup();return}
+    increaseExport();
+    const blob=await exportImageAt(state.currentIndex);
+    downloadBlob(blob,outName(currentImage().name));
+    el.statusText.textContent=IS_PRO_USER?'Export completed.':'Export completed. Free exports used today: '+getTodayExportCount()+'/'+FREE_DAILY_LIMIT;
+  });
+  el.downloadAllBtn.addEventListener('click',async()=>{
+    if(!state.images.length){alert('No images yet.');return}
+    if(!canExport()){showUpgradePopup();return}
+    increaseExport();
+    const keep=state.currentIndex;
+    for(let i=0;i<state.images.length;i++){
+      renderImage(i);
+      const blob=await exportImageAt(i);
+      downloadBlob(blob,outName(state.images[i].name));
+      await wait(250);
+    }
+    renderImage(keep);
+    el.statusText.textContent=IS_PRO_USER?'All images downloaded.':'All images downloaded. Free exports used today: '+getTodayExportCount()+'/'+FREE_DAILY_LIMIT;
+  });
   function toNormalCase(txt){return String(txt||'').toLowerCase().split(' ').filter(Boolean).map(w=>w.charAt(0).toUpperCase()+w.slice(1)).join(' ')}function applyTextCase(mode){const sel=selectedItem();if(!sel||sel.type!=='text'){alert('Select text first.');return}save();state.images.forEach(img=>{const it=img.items.find(x=>x.group===sel.group&&x.type==='text');if(it&&it.text){if(mode==='upper')it.text=String(it.text).toUpperCase();if(mode==='normal')it.text=toNormalCase(it.text)}});renderImage(state.currentIndex);el.statusText.textContent=mode==='upper'?'SELECTED TEXT UPPERCASE':'SELECTED TEXT NORMAL CASE'}el.caseUpper.addEventListener('click',()=>applyTextCase('upper'));el.caseNormal.addEventListener('click',()=>applyTextCase('normal'));
-  el.downloadZipBtn.addEventListener('click',async()=>{if(!state.images.length){alert('No images yet.');return}if(typeof JSZip==='undefined'){alert('JSZip failed to load. Please make sure internet is active when opening this file.');return}const zip=new JSZip(),used={},keep=state.currentIndex;el.statusText.textContent='Creating ZIP...';for(let i=0;i<state.images.length;i++){renderImage(i);const blob=await exportImageAt(i);let filename=outName(state.images[i].name);if(used[filename]){used[filename]+=1;filename=filename.toLowerCase().endsWith('.jpg')?filename.slice(0,-4)+'-'+used[filename]+'.jpg':filename+'-'+used[filename]}else used[filename]=1;zip.file(filename,blob)}const content=await zip.generateAsync({type:'blob'});let zipName=outName('edited-images.jpg').replace(/\.jpg$/i,'.zip');if(!zipName.toLowerCase().endsWith('.zip'))zipName='edited-images.zip';downloadBlob(content,zipName);renderImage(keep);el.statusText.textContent='ZIP downloaded: '+zipName});
+  el.downloadZipBtn.addEventListener('click',async()=>{
+    if(!state.images.length){alert('No images yet.');return}
+    if(!canExport()){showUpgradePopup();return}
+    increaseExport();
+    if(typeof JSZip==='undefined'){alert('JSZip failed to load. Please make sure internet is active when opening this file.');return}
+    const zip=new JSZip(),used={},keep=state.currentIndex;
+    el.statusText.textContent='Creating ZIP...';
+    for(let i=0;i<state.images.length;i++){
+      renderImage(i);
+      const blob=await exportImageAt(i);
+      let filename=outName(state.images[i].name);
+      if(used[filename]){
+        used[filename]+=1;
+        filename=filename.toLowerCase().endsWith('.jpg')?filename.slice(0,-4)+'-'+used[filename]+'.jpg':filename+'-'+used[filename];
+      }else used[filename]=1;
+      zip.file(filename,blob);
+    }
+    const content=await zip.generateAsync({type:'blob'});
+    let zipName=outName('edited-images.jpg').replace(/\.jpg$/i,'.zip');
+    if(!zipName.toLowerCase().endsWith('.zip'))zipName='edited-images.zip';
+    downloadBlob(content,zipName);
+    renderImage(keep);
+    el.statusText.textContent=IS_PRO_USER?'ZIP downloaded: '+zipName:'ZIP downloaded: '+zipName+' | Free exports used today: '+getTodayExportCount()+'/'+FREE_DAILY_LIMIT;
+  });
   function escapeHtml(str){return String(str).replace(/[&<>\"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#039;'}[m]))}
 })();
 </script>
