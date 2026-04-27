@@ -34,14 +34,21 @@
       <div id="authLoggedOut">
         <label>Email</label>
         <input id="authEmail" type="email" placeholder="email@example.com">
+
         <label style="margin-top:8px">Password</label>
-        <input id="authPassword" type="password" placeholder="Minimum 6 characters">
+        <div style="display:grid;grid-template-columns:1fr 46px;gap:8px;align-items:center">
+          <input id="authPassword" type="password" placeholder="Minimum 6 characters">
+          <button id="togglePasswordBtn" type="button" class="ghost" title="Show / hide password" style="padding:10px 0">👁</button>
+        </div>
+
         <div class="btns" style="margin-top:10px">
           <button id="loginBtn" type="button">Login</button>
           <button id="registerBtn" type="button" class="ghost">Register</button>
         </div>
+        <button id="forgotPasswordBtn" type="button" class="ghost" style="width:100%;margin-top:10px">Forgot / Reset Password</button>
         <div class="mini" style="margin-top:8px">Login untuk menyimpan akun dan nanti unlock Pro.</div>
       </div>
+
       <div id="authLoggedIn" class="hidden">
         <div class="mini">Logged in as:</div>
         <div id="authUserEmail" style="font-size:13px;font-weight:700;word-break:break-all;margin:4px 0 8px"></div>
@@ -50,6 +57,20 @@
           <button id="upgradeAccountBtn" type="button">Upgrade Pro</button>
           <button id="logoutBtn" type="button" class="ghost">Logout</button>
         </div>
+      </div>
+
+      <div id="resetPasswordBox" class="hidden" style="margin-top:12px;border-top:1px solid var(--line);padding-top:12px">
+        <h2>Set New Password</h2>
+        <label>New Password</label>
+        <div style="display:grid;grid-template-columns:1fr 46px;gap:8px;align-items:center">
+          <input id="newPassword" type="password" placeholder="Minimum 6 characters">
+          <button id="toggleNewPasswordBtn" type="button" class="ghost" title="Show / hide password" style="padding:10px 0">👁</button>
+        </div>
+        <div class="btns" style="margin-top:10px">
+          <button id="updatePasswordBtn" type="button">Update Password</button>
+          <button id="cancelResetBtn" type="button" class="ghost">Cancel</button>
+        </div>
+        <div class="mini" style="margin-top:8px">If you came from reset email, enter your new password here.</div>
       </div>
     </div>
 
@@ -122,6 +143,45 @@
     if(status) status.textContent = message;
   }
 
+  function togglePasswordVisibility(inputId, button){
+    const input = getAuthEl(inputId);
+    if(!input) return;
+    input.type = input.type === 'password' ? 'text' : 'password';
+    if(button) button.textContent = input.type === 'password' ? '👁' : '🙈';
+  }
+
+  function showResetPanel(show=true){
+    const box = getAuthEl('resetPasswordBox');
+    if(box) box.classList.toggle('hidden', !show);
+  }
+
+  async function sendResetPassword(){
+    if(!supabaseClient) return alert('Auth belum siap. Refresh halaman dulu.');
+    const email = (getAuthEl('authEmail')?.value || '').trim();
+    if(!email) return alert('Isi email dulu, lalu klik Forgot / Reset Password.');
+
+    const redirectTo = window.location.origin + window.location.pathname;
+    const { error } = await supabaseClient.auth.resetPasswordForEmail(email, { redirectTo });
+    if(error) return alert(error.message);
+
+    alert('Link reset password sudah dikirim ke email. Cek Inbox/Spam.');
+    setAuthStatus('Reset password email sent.');
+  }
+
+  async function updateNewPassword(){
+    if(!supabaseClient) return alert('Auth belum siap. Refresh halaman dulu.');
+    const password = getAuthEl('newPassword')?.value || '';
+    if(password.length < 6) return alert('Password baru minimal 6 karakter.');
+
+    const { error } = await supabaseClient.auth.updateUser({ password });
+    if(error) return alert(error.message);
+
+    getAuthEl('newPassword').value = '';
+    showResetPanel(false);
+    alert('Password berhasil diubah. Silakan login dengan password baru.');
+    setAuthStatus('Password updated successfully.');
+  }
+
   function updateAuthUI(){
     const loggedOut = getAuthEl('authLoggedOut');
     const loggedIn = getAuthEl('authLoggedIn');
@@ -156,10 +216,14 @@
     accountPlan = localStorage.getItem('accountPlan') || 'free';
     updateAuthUI();
 
-    supabaseClient.auth.onAuthStateChange((_event, session) => {
+    supabaseClient.auth.onAuthStateChange((event, session) => {
       authUser = session ? session.user : null;
       accountPlan = localStorage.getItem('accountPlan') || 'free';
       updateAuthUI();
+      if(event === 'PASSWORD_RECOVERY'){
+        showResetPanel(true);
+        setAuthStatus('Password recovery mode. Enter your new password.');
+      }
     });
   }
 
@@ -443,6 +507,11 @@
   if(getAuthEl('registerBtn')) getAuthEl('registerBtn').addEventListener('click', registerAccount);
   if(getAuthEl('logoutBtn')) getAuthEl('logoutBtn').addEventListener('click', logoutAccount);
   if(getAuthEl('upgradeAccountBtn')) getAuthEl('upgradeAccountBtn').addEventListener('click',()=>{ window.location.href='/' + '#pricing'; });
+  if(getAuthEl('togglePasswordBtn')) getAuthEl('togglePasswordBtn').addEventListener('click', e=>togglePasswordVisibility('authPassword', e.currentTarget));
+  if(getAuthEl('toggleNewPasswordBtn')) getAuthEl('toggleNewPasswordBtn').addEventListener('click', e=>togglePasswordVisibility('newPassword', e.currentTarget));
+  if(getAuthEl('forgotPasswordBtn')) getAuthEl('forgotPasswordBtn').addEventListener('click', sendResetPassword);
+  if(getAuthEl('updatePasswordBtn')) getAuthEl('updatePasswordBtn').addEventListener('click', updateNewPassword);
+  if(getAuthEl('cancelResetBtn')) getAuthEl('cancelResetBtn').addEventListener('click', ()=>showResetPanel(false));
   initAuth();
 
   // RECTANGULAR TOOL REMOVED (disabled due to instability)
