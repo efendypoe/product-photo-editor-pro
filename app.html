@@ -129,6 +129,19 @@
   let supabaseClient = null;
   let authUser = null;
   let accountPlan = 'free';
+  let passwordRecoveryMode = false;
+
+  function getUrlParamFromHashOrSearch(name){
+    const hash = new URLSearchParams((window.location.hash || '').replace(/^#/, ''));
+    const search = new URLSearchParams(window.location.search || '');
+    return hash.get(name) || search.get(name) || '';
+  }
+
+  function cleanRecoveryUrl(){
+    if(window.history && window.history.replaceState){
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }
 
   function isProUser(){
     return accountPlan === 'pro';
@@ -153,6 +166,12 @@
   function showResetPanel(show=true){
     const box = getAuthEl('resetPasswordBox');
     if(box) box.classList.toggle('hidden', !show);
+    if(show){
+      const loggedOut = getAuthEl('authLoggedOut');
+      const loggedIn = getAuthEl('authLoggedIn');
+      if(loggedOut) loggedOut.classList.add('hidden');
+      if(loggedIn) loggedIn.classList.add('hidden');
+    }
   }
 
   async function sendResetPassword(){
@@ -177,12 +196,21 @@
     if(error) return alert(error.message);
 
     getAuthEl('newPassword').value = '';
+    passwordRecoveryMode = false;
     showResetPanel(false);
-    alert('Password berhasil diubah. Silakan login dengan password baru.');
-    setAuthStatus('Password updated successfully.');
+    cleanRecoveryUrl();
+    await supabaseClient.auth.signOut();
+    authUser = null;
+    updateAuthUI();
+    alert('Password berhasil diubah. Silakan login ulang dengan password baru.');
+    setAuthStatus('Password updated successfully. Please login again.');
   }
 
   function updateAuthUI(){
+    if(passwordRecoveryMode){
+      showResetPanel(true);
+      return;
+    }
     const loggedOut = getAuthEl('authLoggedOut');
     const loggedIn = getAuthEl('authLoggedIn');
     const emailText = getAuthEl('authUserEmail');
@@ -211,6 +239,20 @@
     }
     supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+    const linkError = getUrlParamFromHashOrSearch('error_description') || getUrlParamFromHashOrSearch('error');
+    if(linkError){
+      alert('Reset link bermasalah: ' + decodeURIComponent(String(linkError).replace(/\+/g,' ')) + '
+Silakan kirim ulang link Forgot / Reset Password.');
+      cleanRecoveryUrl();
+    }
+
+    const type = getUrlParamFromHashOrSearch('type');
+    if(type === 'recovery'){
+      passwordRecoveryMode = true;
+      showResetPanel(true);
+      setAuthStatus('Password recovery mode. Enter your new password.');
+    }
+
     const { data } = await supabaseClient.auth.getSession();
     authUser = data && data.session ? data.session.user : null;
     accountPlan = localStorage.getItem('accountPlan') || 'free';
@@ -219,11 +261,13 @@
     supabaseClient.auth.onAuthStateChange((event, session) => {
       authUser = session ? session.user : null;
       accountPlan = localStorage.getItem('accountPlan') || 'free';
-      updateAuthUI();
       if(event === 'PASSWORD_RECOVERY'){
+        passwordRecoveryMode = true;
         showResetPanel(true);
         setAuthStatus('Password recovery mode. Enter your new password.');
+        return;
       }
+      updateAuthUI();
     });
   }
 
@@ -511,7 +555,7 @@
   if(getAuthEl('toggleNewPasswordBtn')) getAuthEl('toggleNewPasswordBtn').addEventListener('click', e=>togglePasswordVisibility('newPassword', e.currentTarget));
   if(getAuthEl('forgotPasswordBtn')) getAuthEl('forgotPasswordBtn').addEventListener('click', sendResetPassword);
   if(getAuthEl('updatePasswordBtn')) getAuthEl('updatePasswordBtn').addEventListener('click', updateNewPassword);
-  if(getAuthEl('cancelResetBtn')) getAuthEl('cancelResetBtn').addEventListener('click', ()=>showResetPanel(false));
+  if(getAuthEl('cancelResetBtn')) getAuthEl('cancelResetBtn').addEventListener('click', async ()=>{passwordRecoveryMode=false;showResetPanel(false);cleanRecoveryUrl();if(supabaseClient) await supabaseClient.auth.signOut();authUser=null;updateAuthUI();});
   initAuth();
 
   // RECTANGULAR TOOL REMOVED (disabled due to instability)
