@@ -19,6 +19,7 @@
     .bbox{display:none;position:absolute;inset:-8px;border:1.5px dashed #f59e0b;pointer-events:none}.handle{position:absolute;width:10px;height:10px;border-radius:50%;background:#f59e0b;border:2px solid #111827;pointer-events:auto}.tl{left:-6px;top:-6px;cursor:nwse-resize}.tr{right:-6px;top:-6px;cursor:nesw-resize}.bl{left:-6px;bottom:-6px;cursor:nesw-resize}.br{right:-6px;bottom:-6px;cursor:nwse-resize}.ml{left:-6px;top:50%;transform:translateY(-50%);cursor:ew-resize}.mr{right:-6px;top:50%;transform:translateY(-50%);cursor:ew-resize}.mt{top:-6px;left:50%;transform:translateX(-50%);cursor:ns-resize}.mb{bottom:-6px;left:50%;transform:translateX(-50%);cursor:ns-resize}.rotate-line{position:absolute;left:50%;top:-24px;width:2px;height:14px;background:#f59e0b;transform:translateX(-50%);pointer-events:none}.rotate{left:50%;top:-34px;transform:translateX(-50%);cursor:grab}
     .thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}.thumb{background:#0b1220;border:1px solid var(--line);border-radius:12px;padding:8px;cursor:pointer}.thumb.active{border-color:#f59e0b;box-shadow:0 0 0 1px #f59e0b inset}.thumb img{width:100%;height:110px;object-fit:contain;background:#fff;border-radius:8px;display:block}.name{font-size:11px;color:#cbd5e1;margin-top:6px;word-break:break-word}.hidden{display:none!important}
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
 <body>
@@ -27,6 +28,30 @@
     <h1>Product Photo Editor Pro</h1>
 <div class="sub">Fast Image Tool for Marketplace Sellers</div>
 <div class="mini">v1.0 Stable</div>
+
+    <div class="card" id="authCard">
+      <h2>Account</h2>
+      <div id="authLoggedOut">
+        <label>Email</label>
+        <input id="authEmail" type="email" placeholder="email@example.com">
+        <label style="margin-top:8px">Password</label>
+        <input id="authPassword" type="password" placeholder="Minimum 6 characters">
+        <div class="btns" style="margin-top:10px">
+          <button id="loginBtn" type="button">Login</button>
+          <button id="registerBtn" type="button" class="ghost">Register</button>
+        </div>
+        <div class="mini" style="margin-top:8px">Login untuk menyimpan akun dan nanti unlock Pro.</div>
+      </div>
+      <div id="authLoggedIn" class="hidden">
+        <div class="mini">Logged in as:</div>
+        <div id="authUserEmail" style="font-size:13px;font-weight:700;word-break:break-all;margin:4px 0 8px"></div>
+        <div id="authPlanBadge" style="display:inline-block;background:#0b1220;border:1px solid var(--line);border-radius:999px;padding:7px 10px;font-size:12px;font-weight:800;margin-bottom:10px">Plan: FREE</div>
+        <div class="btns">
+          <button id="upgradeAccountBtn" type="button">Upgrade Pro</button>
+          <button id="logoutBtn" type="button" class="ghost">Logout</button>
+        </div>
+      </div>
+    </div>
 
     <div class="card"><h2>Images</h2><label>Upload Images</label><input id="imagesInput" type="file" accept="image/*" multiple><div class="mini"><span id="imgCount">0</span> images selected</div></div>
 
@@ -77,6 +102,105 @@
 <script>
 (() => {
 
+  // === SUPABASE AUTH SYSTEM ===
+  const SUPABASE_URL = 'https://qkqneetkidkeimcmeuzt.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_PRRuMbcRG3vfYKCBMpVYDg_Nn909pYM';
+  let supabaseClient = null;
+  let authUser = null;
+  let accountPlan = 'free';
+
+  function isProUser(){
+    return accountPlan === 'pro';
+  }
+
+  function getAuthEl(id){
+    return document.getElementById(id);
+  }
+
+  function setAuthStatus(message){
+    const status = document.getElementById('statusText');
+    if(status) status.textContent = message;
+  }
+
+  function updateAuthUI(){
+    const loggedOut = getAuthEl('authLoggedOut');
+    const loggedIn = getAuthEl('authLoggedIn');
+    const emailText = getAuthEl('authUserEmail');
+    const planBadge = getAuthEl('authPlanBadge');
+    if(!loggedOut || !loggedIn) return;
+
+    if(authUser){
+      loggedOut.classList.add('hidden');
+      loggedIn.classList.remove('hidden');
+      if(emailText) emailText.textContent = authUser.email || '-';
+      if(planBadge){
+        planBadge.textContent = 'Plan: ' + accountPlan.toUpperCase();
+        planBadge.style.borderColor = isProUser() ? '#22c55e' : '#334155';
+        planBadge.style.color = isProUser() ? '#22c55e' : '#e5e7eb';
+      }
+    }else{
+      loggedIn.classList.add('hidden');
+      loggedOut.classList.remove('hidden');
+    }
+  }
+
+  async function initAuth(){
+    if(!window.supabase){
+      setAuthStatus('Supabase auth failed to load.');
+      return;
+    }
+    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    const { data } = await supabaseClient.auth.getSession();
+    authUser = data && data.session ? data.session.user : null;
+    accountPlan = localStorage.getItem('accountPlan') || 'free';
+    updateAuthUI();
+
+    supabaseClient.auth.onAuthStateChange((_event, session) => {
+      authUser = session ? session.user : null;
+      accountPlan = localStorage.getItem('accountPlan') || 'free';
+      updateAuthUI();
+    });
+  }
+
+  async function registerAccount(){
+    if(!supabaseClient) return alert('Auth belum siap. Refresh halaman dulu.');
+    const email = (getAuthEl('authEmail')?.value || '').trim();
+    const password = getAuthEl('authPassword')?.value || '';
+    if(!email || !password) return alert('Isi email dan password dulu.');
+    if(password.length < 6) return alert('Password minimal 6 karakter.');
+
+    const { data, error } = await supabaseClient.auth.signUp({ email, password });
+    if(error) return alert(error.message);
+    authUser = data.user || authUser;
+    accountPlan = 'free';
+    localStorage.setItem('accountPlan','free');
+    updateAuthUI();
+    alert('Register berhasil. Kalau email confirmation aktif, cek email untuk verifikasi.');
+  }
+
+  async function loginAccount(){
+    if(!supabaseClient) return alert('Auth belum siap. Refresh halaman dulu.');
+    const email = (getAuthEl('authEmail')?.value || '').trim();
+    const password = getAuthEl('authPassword')?.value || '';
+    if(!email || !password) return alert('Isi email dan password dulu.');
+
+    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+    if(error) return alert(error.message);
+    authUser = data.user;
+    accountPlan = localStorage.getItem('accountPlan') || 'free';
+    updateAuthUI();
+    setAuthStatus('Login berhasil. Plan: ' + accountPlan.toUpperCase());
+  }
+
+  async function logoutAccount(){
+    if(supabaseClient) await supabaseClient.auth.signOut();
+    authUser = null;
+    accountPlan = 'free';
+    updateAuthUI();
+    setAuthStatus('Logout berhasil.');
+  }
+
   // === FREE EXPORT LIMIT SYSTEM ===
   const FREE_DAILY_LIMIT = 5;
 
@@ -104,10 +228,12 @@
   }
 
   function canExport(){
+    if(isProUser()) return true;
     return getTodayExportCount() < FREE_DAILY_LIMIT;
   }
 
   function increaseExport(){
+    if(isProUser()) { updateExportLimitText(); return; }
     const today = getTodayKey();
     const data = getExportData();
     data[today] = Number(data[today] || 0) + 1;
@@ -118,7 +244,7 @@
   function updateExportLimitText(){
     if(el && el.statusText){
       const used = getTodayExportCount();
-      el.statusText.textContent = 'Export used today: ' + used + '/' + FREE_DAILY_LIMIT;
+      el.statusText.textContent = isProUser() ? 'PRO active: unlimited export.' : ('Export used today: ' + used + '/' + FREE_DAILY_LIMIT);
     }
   }
 
@@ -138,7 +264,7 @@
     div.innerHTML = `
       <div style="background:#111827;color:#e5e7eb;border:1px solid #334155;border-radius:18px;padding:26px;max-width:360px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.45)">
         <h2 style="margin:0 0 10px;font-size:22px;color:#fff">Export Limit Reached</h2>
-        <p style="margin:0 0 18px;color:#cbd5e1;line-height:1.5">Free plan includes 5 exports per day. Upgrade to Pro for unlimited export.</p>
+        <p style="margin:0 0 18px;color:#cbd5e1;line-height:1.5">Free plan includes 5 exports per day. Login and upgrade to Pro for unlimited export.</p>
         <div style="display:grid;gap:10px">
           <button id="upgradeProBtn" style="background:#f59e0b;color:#111827;border:0;border-radius:12px;padding:12px 16px;font-weight:900;cursor:pointer">Upgrade Pro</button>
           <button id="closeUpgradeBtn" style="background:transparent;color:#cbd5e1;border:1px solid #334155;border-radius:12px;padding:10px 16px;font-weight:700;cursor:pointer">Close</button>
@@ -313,6 +439,11 @@
   function manualImageZoom(){const z=clamp(Number(el.imageZoom.value||100),30,250);state.images.forEach(img=>{ensureImageTransform(img);img.transform.zoom=z});refreshStage()}
   el.bgCleanEnable.addEventListener('change',()=>applyBgCleanup({enable:el.bgCleanEnable.checked}));el.bgAdvancedEnable.addEventListener('change',()=>applyBgCleanup({advanced:el.bgAdvancedEnable.checked,enable:el.bgAdvancedEnable.checked?true:el.bgCleanEnable.checked}));el.bgStrength.addEventListener('input',updateBgCleanupFromSliders);el.bgShadow.addEventListener('input',updateBgCleanupFromSliders);el.bgEdge.addEventListener('input',updateBgCleanupFromSliders);el.bgStrength.addEventListener('change',()=>{save();updateBgCleanupFromSliders()});el.bgShadow.addEventListener('change',()=>{save();updateBgCleanupFromSliders()});el.bgEdge.addEventListener('change',()=>{save();updateBgCleanupFromSliders()});el.bgStrengthInput.addEventListener('keydown',e=>{if(e.key==='Enter')updateBgCleanupFromInputs()});el.bgShadowInput.addEventListener('keydown',e=>{if(e.key==='Enter')updateBgCleanupFromInputs()});el.bgEdgeInput.addEventListener('keydown',e=>{if(e.key==='Enter')updateBgCleanupFromInputs()});el.bgStrengthInput.addEventListener('blur',updateBgCleanupFromInputs);el.bgShadowInput.addEventListener('blur',updateBgCleanupFromInputs);el.bgEdgeInput.addEventListener('blur',updateBgCleanupFromInputs);el.bgReset.addEventListener('click',()=>applyBgCleanup({enable:false,advanced:false,strength:0,shadow:60,edge:60}));
   el.canvasMode.addEventListener('change',()=>applyImageTransform({mode:el.canvasMode.value,x:50,y:50}));el.imageZoom.addEventListener('input',manualImageZoom);el.imageZoom.addEventListener('change',()=>{save();manualImageZoom()});el.imageZoomInput.addEventListener('keydown',e=>{if(e.key==='Enter')applyImageTransform({zoom:clamp(Number(el.imageZoomInput.value||100),30,250)})});el.imageZoomInput.addEventListener('blur',()=>applyImageTransform({zoom:clamp(Number(el.imageZoomInput.value||100),30,250)}));el.centerImage.addEventListener('click',()=>applyImageTransform({x:50,y:50}));el.resetImageTransform.addEventListener('click',()=>applyImageTransform({mode:'original',zoom:100,x:50,y:50}));
+  if(getAuthEl('loginBtn')) getAuthEl('loginBtn').addEventListener('click', loginAccount);
+  if(getAuthEl('registerBtn')) getAuthEl('registerBtn').addEventListener('click', registerAccount);
+  if(getAuthEl('logoutBtn')) getAuthEl('logoutBtn').addEventListener('click', logoutAccount);
+  if(getAuthEl('upgradeAccountBtn')) getAuthEl('upgradeAccountBtn').addEventListener('click',()=>{ window.location.href='/' + '#pricing'; });
+  initAuth();
 
   // RECTANGULAR TOOL REMOVED (disabled due to instability)
   [el.photoBrightness,el.photoContrast,el.photoExposure].forEach(n=>{n.addEventListener('input',manualPhotoAdjust);n.addEventListener('change',()=>{save();manualPhotoAdjust()})});[el.photoBrightnessInput,el.photoContrastInput,el.photoExposureInput].forEach(n=>{n.addEventListener('keydown',e=>{if(e.key==='Enter'){save();manualPhotoAdjustFromInput()}});n.addEventListener('blur',()=>{save();manualPhotoAdjustFromInput()})});[el.textContent,el.fontFamily,el.fontSize,el.textAlign,el.strokeWidth,el.textColor,el.strokeColor,el.gradientEnabled,el.gradientColor1,el.gradientColor2,el.gradientColor3,el.gradientDirection,el.shadowColor,el.shadowBlur,el.rotate,el.opacity,el.logoRotate,el.logoOpacity].forEach(n=>{n.addEventListener('input',updateFromPanel);n.addEventListener('change',save)});
