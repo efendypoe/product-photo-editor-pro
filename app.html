@@ -173,12 +173,12 @@
 
   function newDeviceSessionToken(){
     const token = 'dev_' + Date.now() + '_' + Math.random().toString(36).slice(2,12);
-    localStorage.setItem(SINGLE_LOGIN_STORAGE_KEY, token);
+    sessionStorage.setItem(SINGLE_LOGIN_STORAGE_KEY, token);
     return token;
   }
 
   function getDeviceSessionToken(){
-    let token = localStorage.getItem(SINGLE_LOGIN_STORAGE_KEY);
+    let token = sessionStorage.getItem(SINGLE_LOGIN_STORAGE_KEY);
     if(!token) token = newDeviceSessionToken();
     return token;
   }
@@ -235,8 +235,16 @@
 
   function startSingleLoginChecker(){
     if(singleLoginTimer) clearInterval(singleLoginTimer);
-    singleLoginTimer = setInterval(()=>{ verifySingleLoginSession(); }, 3000);
+    singleLoginTimer = setInterval(()=>{ verifySingleLoginSession().catch(err=>console.warn('single login check failed', err)); }, 2000);
   }
+
+  window.addEventListener('focus', ()=>{
+    if(authUser) verifySingleLoginSession().catch(err=>console.warn('single login focus check failed', err));
+  });
+
+  document.addEventListener('visibilitychange', ()=>{
+    if(!document.hidden && authUser) verifySingleLoginSession().catch(err=>console.warn('single login visibility check failed', err));
+  });
 
   function removeModal(id){
     const old=document.getElementById(id);
@@ -290,28 +298,47 @@
       bodyHtml: passwordInputHtml('currentPasswordModalInput','Current password'),
       okText:'OK',
       onOk: async()=>{
-        const current=(document.getElementById('currentPasswordModalInput')?.value||'');
-        if(current.length<6) return alert('Current password minimal 6 karakter.');
-        const email=authUser.email;
-        const { error } = await supabaseClient.auth.signInWithPassword({ email, password: current });
-        if(error) return alert('Current password salah.');
-        removeModal('changePasswordModal');
-        showModal({
-          id:'newPasswordModal',
-          title:'Type New Password',
-          bodyHtml: passwordInputHtml('newPasswordModalInput','New password minimum 6 characters'),
-          okText:'OK',
-          onOk: async()=>{
-            const newPass=(document.getElementById('newPasswordModalInput')?.value||'');
-            if(newPass.length<6) return alert('New password minimal 6 karakter.');
-            const { error:updateError } = await supabaseClient.auth.updateUser({ password:newPass });
-            if(updateError) return alert(updateError.message);
-            removeModal('newPasswordModal');
-            alert('Password changed.');
-            setAuthStatus('Password changed successfully.');
+        try{
+          const current=(document.getElementById('currentPasswordModalInput')?.value||'');
+          if(current.length<6) return alert('Current password minimal 6 karakter.');
+          const email=authUser.email;
+          const okBtn=document.getElementById('changePasswordModal_ok');
+          if(okBtn){okBtn.disabled=true;okBtn.textContent='Checking...';}
+          const { error } = await supabaseClient.auth.signInWithPassword({ email, password: current });
+          if(error){
+            if(okBtn){okBtn.disabled=false;okBtn.textContent='OK';}
+            return alert('Current password salah.');
           }
-        });
-        setTimeout(()=>wireModalPasswordEye('newPasswordModalInput'),0);
+          removeModal('changePasswordModal');
+          showModal({
+            id:'newPasswordModal',
+            title:'Type New Password',
+            bodyHtml: passwordInputHtml('newPasswordModalInput','New password minimum 6 characters'),
+            okText:'OK',
+            onOk: async()=>{
+              try{
+                const newPass=(document.getElementById('newPasswordModalInput')?.value||'');
+                if(newPass.length<6) return alert('New password minimal 6 karakter.');
+                const ok2=document.getElementById('newPasswordModal_ok');
+                if(ok2){ok2.disabled=true;ok2.textContent='Saving...';}
+                const { error:updateError } = await supabaseClient.auth.updateUser({ password:newPass });
+                if(updateError){
+                  if(ok2){ok2.disabled=false;ok2.textContent='OK';}
+                  return alert(updateError.message);
+                }
+                removeModal('newPasswordModal');
+                alert('Password changed. Please login again with your new password.');
+                await logoutAccount(false);
+                location.reload();
+              }catch(err){
+                alert('Change password error: '+(err.message||err));
+              }
+            }
+          });
+          setTimeout(()=>wireModalPasswordEye('newPasswordModalInput'),0);
+        }catch(err){
+          alert('Change password error: '+(err.message||err));
+        }
       }
     });
     setTimeout(()=>wireModalPasswordEye('currentPasswordModalInput'),0);
@@ -412,7 +439,12 @@
     accountPlan = localStorage.getItem('accountPlan') || 'free';
     updateAuthUI();
     if(authUser){
-      await verifySingleLoginSession();
+      // If browser/tab has no single-login token, make this session the active one.
+      if(!sessionStorage.getItem(SINGLE_LOGIN_STORAGE_KEY)){
+        await setActiveSingleLoginSession(true);
+      }else{
+        await verifySingleLoginSession();
+      }
       startSingleLoginChecker();
     }
 
@@ -471,15 +503,23 @@
   }
 
   async function logoutAccount(isForced=false){
-    if(singleLoginTimer){
-      clearInterval(singleLoginTimer);
-      singleLoginTimer = null;
+    try{
+      if(singleLoginTimer){
+        clearInterval(singleLoginTimer);
+        singleLoginTimer = null;
+      }
+      sessionStorage.removeItem(SINGLE_LOGIN_STORAGE_KEY);
+      if(supabaseClient) await supabaseClient.auth.signOut();
+    }catch(err){
+      console.warn('Logout error:', err);
     }
-    if(supabaseClient) await supabaseClient.auth.signOut();
     authUser = null;
     accountPlan = 'free';
     updateAuthUI();
-    setAuthStatus(isForced ? 'Logged out because this account was opened on another device.' : 'Logout berhasil.');
+    setAuthStatus(isForced ? 'Account logged out because this account was opened on another device.' : 'Logout berhasil.');
+    if(isForced){
+      setTimeout(()=>location.reload(), 500);
+    }
   }
 
   // === FREE EXPORT LIMIT SYSTEM (DATABASE / ANTI MULTI-BROWSER BYPASS) ===
@@ -764,7 +804,7 @@
   el.canvasMode.addEventListener('change',()=>applyImageTransform({mode:el.canvasMode.value,x:50,y:50}));el.imageZoom.addEventListener('input',manualImageZoom);el.imageZoom.addEventListener('change',()=>{save();manualImageZoom()});el.imageZoomInput.addEventListener('keydown',e=>{if(e.key==='Enter')applyImageTransform({zoom:clamp(Number(el.imageZoomInput.value||100),30,250)})});el.imageZoomInput.addEventListener('blur',()=>applyImageTransform({zoom:clamp(Number(el.imageZoomInput.value||100),30,250)}));el.centerImage.addEventListener('click',()=>applyImageTransform({x:50,y:50}));el.resetImageTransform.addEventListener('click',()=>applyImageTransform({mode:'original',zoom:100,x:50,y:50}));
   if(getAuthEl('loginBtn')) getAuthEl('loginBtn').addEventListener('click', loginAccount);
   if(getAuthEl('registerBtn')) getAuthEl('registerBtn').addEventListener('click', registerAccount);
-  if(getAuthEl('logoutBtn')) getAuthEl('logoutBtn').addEventListener('click', logoutAccount);
+  if(getAuthEl('logoutBtn')) getAuthEl('logoutBtn').addEventListener('click', ()=>logoutAccount(false));
   if(getAuthEl('upgradeAccountBtn')) getAuthEl('upgradeAccountBtn').addEventListener('click',()=>{ window.location.href='/' + '#pricing'; });
   if(getAuthEl('togglePasswordBtn')) getAuthEl('togglePasswordBtn').addEventListener('click', e=>togglePasswordVisibility('authPassword', e.currentTarget));
   if(getAuthEl('toggleNewPasswordBtn')) getAuthEl('toggleNewPasswordBtn').addEventListener('click', e=>togglePasswordVisibility('newPassword', e.currentTarget));
