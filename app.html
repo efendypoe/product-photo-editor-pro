@@ -57,6 +57,17 @@
           <button id="upgradeAccountBtn" type="button">Upgrade Pro</button>
           <button id="logoutBtn" type="button" class="ghost">Logout</button>
         </div>
+
+        <div id="changePasswordBox" style="margin-top:12px;border-top:1px solid var(--line);padding-top:12px">
+          <h2>Change Password</h2>
+          <label>New Password</label>
+          <div style="display:grid;grid-template-columns:1fr 46px;gap:8px;align-items:center">
+            <input id="changePasswordInput" type="password" placeholder="Minimum 6 characters">
+            <button id="toggleChangePasswordBtn" type="button" class="ghost" title="Show / hide password" style="padding:10px 0">👁</button>
+          </div>
+          <button id="changePasswordBtn" type="button" class="ghost" style="width:100%;margin-top:10px">Change Password</button>
+          <div class="mini" style="margin-top:8px">Only the logged-in user can change their own password.</div>
+        </div>
       </div>
 
       <div id="resetPasswordBox" class="hidden" style="margin-top:12px;border-top:1px solid var(--line);padding-top:12px">
@@ -130,6 +141,9 @@
   let authUser = null;
   let accountPlan = 'free';
   let passwordRecoveryMode = false;
+  let singleLoginTimer = null;
+  let forcedLogoutInProgress = false;
+  const SINGLE_LOGIN_STORAGE_KEY = 'epp_single_login_token';
 
   function getUrlParamFromHashOrSearch(name){
     const hash = new URLSearchParams((window.location.hash || '').replace(/^#/, ''));
@@ -161,6 +175,74 @@
     if(!input) return;
     input.type = input.type === 'password' ? 'text' : 'password';
     if(button) button.textContent = input.type === 'password' ? '👁' : '🙈';
+  }
+
+  function getDeviceSessionToken(){
+    let token = localStorage.getItem(SINGLE_LOGIN_STORAGE_KEY);
+    if(!token){
+      token = 'dev_' + Date.now() + '_' + Math.random().toString(36).slice(2,12);
+      localStorage.setItem(SINGLE_LOGIN_STORAGE_KEY, token);
+    }
+    return token;
+  }
+
+  async function setActiveSingleLoginSession(){
+    if(!supabaseClient || !authUser) return false;
+    const token = getDeviceSessionToken();
+    const { error } = await supabaseClient
+      .from('user_active_sessions')
+      .upsert({ user_id: authUser.id, session_token: token, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
+    if(error){
+      console.warn('Single login upsert error:', error.message);
+      setAuthStatus('Single login warning: ' + error.message);
+      return false;
+    }
+    return true;
+  }
+
+  async function verifySingleLoginSession(){
+    if(!supabaseClient || !authUser || forcedLogoutInProgress) return true;
+    const token = getDeviceSessionToken();
+    const { data, error } = await supabaseClient
+      .from('user_active_sessions')
+      .select('session_token')
+      .eq('user_id', authUser.id)
+      .maybeSingle();
+
+    if(error){
+      console.warn('Single login check error:', error.message);
+      return true;
+    }
+
+    if(!data || !data.session_token){
+      await setActiveSingleLoginSession();
+      return true;
+    }
+
+    if(data.session_token !== token){
+      forcedLogoutInProgress = true;
+      alert('Akun ini login di device/browser lain. Session di sini otomatis logout.');
+      await logoutAccount(true);
+      forcedLogoutInProgress = false;
+      return false;
+    }
+    return true;
+  }
+
+  function startSingleLoginChecker(){
+    if(singleLoginTimer) clearInterval(singleLoginTimer);
+    singleLoginTimer = setInterval(()=>{ verifySingleLoginSession(); }, 10000);
+  }
+
+  async function changeAccountPassword(){
+    if(!supabaseClient || !authUser) return alert('Harus login dulu.');
+    const password = getAuthEl('changePasswordInput')?.value || '';
+    if(password.length < 6) return alert('Password baru minimal 6 karakter.');
+    const { error } = await supabaseClient.auth.updateUser({ password });
+    if(error) return alert(error.message);
+    getAuthEl('changePasswordInput').value = '';
+    alert('Password berhasil diubah. Silakan simpan password baru kamu.');
+    setAuthStatus('Password changed successfully.');
   }
 
   function showResetPanel(show=true){
@@ -256,8 +338,12 @@
     authUser = data && data.session ? data.session.user : null;
     accountPlan = localStorage.getItem('accountPlan') || 'free';
     updateAuthUI();
+    if(authUser){
+      await verifySingleLoginSession();
+      startSingleLoginChecker();
+    }
 
-    supabaseClient.auth.onAuthStateChange((event, session) => {
+    supabaseClient.auth.onAuthStateChange(async (event, session) => {
       authUser = session ? session.user : null;
       accountPlan = localStorage.getItem('accountPlan') || 'free';
       if(event === 'PASSWORD_RECOVERY'){
@@ -265,6 +351,11 @@
         showResetPanel(true);
         setAuthStatus('Password recovery mode. Enter your new password.');
         return;
+      }
+      if(authUser){
+        if(event === 'SIGNED_IN') await setActiveSingleLoginSession();
+        await verifySingleLoginSession();
+        startSingleLoginChecker();
       }
       updateAuthUI();
     });
@@ -282,6 +373,10 @@
     authUser = data.user || authUser;
     accountPlan = 'free';
     localStorage.setItem('accountPlan','free');
+    if(authUser){
+      await setActiveSingleLoginSession();
+      startSingleLoginChecker();
+    }
     updateAuthUI();
     alert('Register berhasil. Kalau email confirmation aktif, cek email untuk verifikasi.');
   }
@@ -296,16 +391,22 @@
     if(error) return alert(error.message);
     authUser = data.user;
     accountPlan = localStorage.getItem('accountPlan') || 'free';
+    await setActiveSingleLoginSession();
+    startSingleLoginChecker();
     updateAuthUI();
     setAuthStatus('Login berhasil. Plan: ' + accountPlan.toUpperCase());
   }
 
-  async function logoutAccount(){
+  async function logoutAccount(isForced=false){
+    if(singleLoginTimer){
+      clearInterval(singleLoginTimer);
+      singleLoginTimer = null;
+    }
     if(supabaseClient) await supabaseClient.auth.signOut();
     authUser = null;
     accountPlan = 'free';
     updateAuthUI();
-    setAuthStatus('Logout berhasil.');
+    setAuthStatus(isForced ? 'Logged out because this account was opened on another device.' : 'Logout berhasil.');
   }
 
   // === FREE EXPORT LIMIT SYSTEM ===
@@ -552,8 +653,10 @@
   if(getAuthEl('upgradeAccountBtn')) getAuthEl('upgradeAccountBtn').addEventListener('click',()=>{ window.location.href='/' + '#pricing'; });
   if(getAuthEl('togglePasswordBtn')) getAuthEl('togglePasswordBtn').addEventListener('click', e=>togglePasswordVisibility('authPassword', e.currentTarget));
   if(getAuthEl('toggleNewPasswordBtn')) getAuthEl('toggleNewPasswordBtn').addEventListener('click', e=>togglePasswordVisibility('newPassword', e.currentTarget));
+  if(getAuthEl('toggleChangePasswordBtn')) getAuthEl('toggleChangePasswordBtn').addEventListener('click', e=>togglePasswordVisibility('changePasswordInput', e.currentTarget));
   if(getAuthEl('forgotPasswordBtn')) getAuthEl('forgotPasswordBtn').addEventListener('click', sendResetPassword);
   if(getAuthEl('updatePasswordBtn')) getAuthEl('updatePasswordBtn').addEventListener('click', updateNewPassword);
+  if(getAuthEl('changePasswordBtn')) getAuthEl('changePasswordBtn').addEventListener('click', changeAccountPassword);
   if(getAuthEl('cancelResetBtn')) getAuthEl('cancelResetBtn').addEventListener('click', async ()=>{passwordRecoveryMode=false;showResetPanel(false);cleanRecoveryUrl();if(supabaseClient) await supabaseClient.auth.signOut();authUser=null;updateAuthUI();});
   initAuth();
 
