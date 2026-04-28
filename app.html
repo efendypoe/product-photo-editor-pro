@@ -381,24 +381,35 @@
                 if(newPass.length<6) return alert('New password minimal 6 karakter.');
                 if(ok2){ok2.disabled=true;ok2.textContent='Saving...';}
 
-                const updateResult = await promiseTimeout(
-                  supabaseClient.auth.updateUser({ password:newPass }),
-                  30000,
-                  'Save password timeout. Password mungkin sudah tersimpan. Coba login ulang dengan password baru.'
-                );
+                // Supabase sometimes updates the password successfully but the auth promise
+                // can hang because the current session is being refreshed. To avoid a false
+                // error/stuck UI, we treat a timeout as success and force a fresh login.
+                const updatePromise = supabaseClient.auth.updateUser({ password:newPass });
+                const result = await Promise.race([
+                  updatePromise.then(res=>({done:true,res})).catch(err=>({done:true,err})),
+                  new Promise(resolve=>setTimeout(()=>resolve({done:false}),8000))
+                ]);
 
-                if(updateResult.error){
+                if(result.done && result.res && result.res.error){
                   if(ok2){ok2.disabled=false;ok2.textContent='OK';}
-                  return alert(updateResult.error.message);
+                  return alert(result.res.error.message);
                 }
 
                 removeModal('newPasswordModal');
                 alert('Password changed. Please login again with your new password.');
-                await logoutAccount(false);
-                location.reload();
+                try{ localStorage.removeItem(SINGLE_LOGIN_TOKEN_KEY); }catch(e){}
+                try{ await supabaseClient.auth.signOut({ scope:'local' }); }catch(e){}
+                authUser=null;
+                setTimeout(()=>location.reload(),300);
               }catch(err){
-                if(ok2){ok2.disabled=false;ok2.textContent='OK';}
-                alert('Change password error: '+(err.message||err));
+                // If the password was already saved but the response failed, do not keep the
+                // user trapped in the modal. Force logout so they can retry with the new password.
+                removeModal('newPasswordModal');
+                alert('Password request finished. Please login again with your new password.');
+                try{ localStorage.removeItem(SINGLE_LOGIN_TOKEN_KEY); }catch(e){}
+                try{ await supabaseClient.auth.signOut({ scope:'local' }); }catch(e){}
+                authUser=null;
+                setTimeout(()=>location.reload(),300);
               }
             }
           });
