@@ -59,14 +59,8 @@
         </div>
 
         <div id="changePasswordBox" style="margin-top:12px;border-top:1px solid var(--line);padding-top:12px">
-          <h2>Change Password</h2>
-          <label>New Password</label>
-          <div style="display:grid;grid-template-columns:1fr 46px;gap:8px;align-items:center">
-            <input id="changePasswordInput" type="password" placeholder="Minimum 6 characters">
-            <button id="toggleChangePasswordBtn" type="button" class="ghost" title="Show / hide password" style="padding:10px 0">👁</button>
-          </div>
-          <button id="changePasswordBtn" type="button" class="ghost" style="width:100%;margin-top:10px">Change Password</button>
-          <div class="mini" style="margin-top:8px">Only the logged-in user can change their own password.</div>
+          <button id="openChangePasswordBtn" type="button" class="ghost" style="width:100%">Change Password</button>
+          <div class="mini" style="margin-top:8px">Change password requires your current password.</div>
         </div>
       </div>
 
@@ -177,23 +171,33 @@
     if(button) button.textContent = input.type === 'password' ? '👁' : '🙈';
   }
 
-  function getDeviceSessionToken(){
-    let token = localStorage.getItem(SINGLE_LOGIN_STORAGE_KEY);
-    if(!token){
-      token = 'dev_' + Date.now() + '_' + Math.random().toString(36).slice(2,12);
-      localStorage.setItem(SINGLE_LOGIN_STORAGE_KEY, token);
-    }
+  function newDeviceSessionToken(){
+    const token = 'dev_' + Date.now() + '_' + Math.random().toString(36).slice(2,12);
+    localStorage.setItem(SINGLE_LOGIN_STORAGE_KEY, token);
     return token;
   }
 
-  async function setActiveSingleLoginSession(){
+  function getDeviceSessionToken(){
+    let token = localStorage.getItem(SINGLE_LOGIN_STORAGE_KEY);
+    if(!token) token = newDeviceSessionToken();
+    return token;
+  }
+
+  async function setActiveSingleLoginSession(forceNew=false){
     if(!supabaseClient || !authUser) return false;
-    const token = getDeviceSessionToken();
-    const { error } = await supabaseClient
+    const token = forceNew ? newDeviceSessionToken() : getDeviceSessionToken();
+    let { error } = await supabaseClient
       .from('user_active_sessions')
       .upsert({ user_id: authUser.id, session_token: token, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
     if(error){
-      console.warn('Single login upsert error:', error.message);
+      const updateResult = await supabaseClient
+        .from('user_active_sessions')
+        .update({ session_token: token, updated_at: new Date().toISOString() })
+        .eq('user_id', authUser.id);
+      error = updateResult.error;
+    }
+    if(error){
+      console.warn('Single login upsert/update error:', error.message);
       setAuthStatus('Single login warning: ' + error.message);
       return false;
     }
@@ -231,18 +235,86 @@
 
   function startSingleLoginChecker(){
     if(singleLoginTimer) clearInterval(singleLoginTimer);
-    singleLoginTimer = setInterval(()=>{ verifySingleLoginSession(); }, 10000);
+    singleLoginTimer = setInterval(()=>{ verifySingleLoginSession(); }, 3000);
   }
 
-  async function changeAccountPassword(){
+  function removeModal(id){
+    const old=document.getElementById(id);
+    if(old) old.remove();
+  }
+
+  function showModal({id,title,bodyHtml,onOk,okText='OK',cancelText='Cancel'}){
+    removeModal(id);
+    const div=document.createElement('div');
+    div.id=id;
+    div.style.position='fixed';
+    div.style.inset='0';
+    div.style.background='rgba(0,0,0,.78)';
+    div.style.zIndex='99999';
+    div.style.display='flex';
+    div.style.alignItems='center';
+    div.style.justifyContent='center';
+    div.innerHTML=`
+      <div style="background:#111827;color:#e5e7eb;border:1px solid #334155;border-radius:18px;padding:24px;width:min(92vw,380px);box-shadow:0 20px 60px rgba(0,0,0,.45)">
+        <h2 style="margin:0 0 14px;font-size:20px;color:#fff">${title}</h2>
+        <div>${bodyHtml}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px">
+          <button id="${id}_ok" type="button" style="background:#f59e0b;color:#111827;border:0;border-radius:12px;padding:12px;font-weight:900;cursor:pointer">${okText}</button>
+          <button id="${id}_cancel" type="button" style="background:transparent;color:#cbd5e1;border:1px solid #334155;border-radius:12px;padding:12px;font-weight:800;cursor:pointer">${cancelText}</button>
+        </div>
+      </div>`;
+    document.body.appendChild(div);
+    document.getElementById(id+'_cancel').onclick=()=>removeModal(id);
+    document.getElementById(id+'_ok').onclick=onOk;
+    return div;
+  }
+
+  function passwordInputHtml(inputId, placeholder){
+    return `<div style="display:grid;grid-template-columns:1fr 46px;gap:8px;align-items:center">
+      <input id="${inputId}" type="password" placeholder="${placeholder}" style="width:100%;background:#0b1220;color:#e5e7eb;border:1px solid #334155;border-radius:10px;padding:11px 12px;outline:none">
+      <button id="${inputId}_eye" type="button" style="background:transparent;color:#e5e7eb;border:1px solid #334155;border-radius:10px;padding:10px 0;cursor:pointer">👁</button>
+    </div>`;
+  }
+
+  function wireModalPasswordEye(inputId){
+    const input=document.getElementById(inputId), btn=document.getElementById(inputId+'_eye');
+    if(!input||!btn)return;
+    btn.onclick=()=>{input.type=input.type==='password'?'text':'password';btn.textContent=input.type==='password'?'👁':'🙈'};
+  }
+
+  async function openChangePasswordFlow(){
     if(!supabaseClient || !authUser) return alert('Harus login dulu.');
-    const password = getAuthEl('changePasswordInput')?.value || '';
-    if(password.length < 6) return alert('Password baru minimal 6 karakter.');
-    const { error } = await supabaseClient.auth.updateUser({ password });
-    if(error) return alert(error.message);
-    getAuthEl('changePasswordInput').value = '';
-    alert('Password berhasil diubah. Silakan simpan password baru kamu.');
-    setAuthStatus('Password changed successfully.');
+    showModal({
+      id:'changePasswordModal',
+      title:'Type Current Password',
+      bodyHtml: passwordInputHtml('currentPasswordModalInput','Current password'),
+      okText:'OK',
+      onOk: async()=>{
+        const current=(document.getElementById('currentPasswordModalInput')?.value||'');
+        if(current.length<6) return alert('Current password minimal 6 karakter.');
+        const email=authUser.email;
+        const { error } = await supabaseClient.auth.signInWithPassword({ email, password: current });
+        if(error) return alert('Current password salah.');
+        removeModal('changePasswordModal');
+        showModal({
+          id:'newPasswordModal',
+          title:'Type New Password',
+          bodyHtml: passwordInputHtml('newPasswordModalInput','New password minimum 6 characters'),
+          okText:'OK',
+          onOk: async()=>{
+            const newPass=(document.getElementById('newPasswordModalInput')?.value||'');
+            if(newPass.length<6) return alert('New password minimal 6 karakter.');
+            const { error:updateError } = await supabaseClient.auth.updateUser({ password:newPass });
+            if(updateError) return alert(updateError.message);
+            removeModal('newPasswordModal');
+            alert('Password changed.');
+            setAuthStatus('Password changed successfully.');
+          }
+        });
+        setTimeout(()=>wireModalPasswordEye('newPasswordModalInput'),0);
+      }
+    });
+    setTimeout(()=>wireModalPasswordEye('currentPasswordModalInput'),0);
   }
 
   function showResetPanel(show=true){
@@ -308,6 +380,7 @@
         planBadge.style.borderColor = isProUser() ? '#22c55e' : '#334155';
         planBadge.style.color = isProUser() ? '#22c55e' : '#e5e7eb';
       }
+      setTimeout(()=>updateExportLimitText(),0);
     }else{
       loggedIn.classList.add('hidden');
       loggedOut.classList.remove('hidden');
@@ -353,7 +426,7 @@
         return;
       }
       if(authUser){
-        if(event === 'SIGNED_IN') await setActiveSingleLoginSession();
+        if(event === 'SIGNED_IN') await setActiveSingleLoginSession(true);
         await verifySingleLoginSession();
         startSingleLoginChecker();
       }
@@ -374,7 +447,7 @@
     accountPlan = 'free';
     localStorage.setItem('accountPlan','free');
     if(authUser){
-      await setActiveSingleLoginSession();
+      await setActiveSingleLoginSession(true);
       startSingleLoginChecker();
     }
     updateAuthUI();
@@ -391,7 +464,7 @@
     if(error) return alert(error.message);
     authUser = data.user;
     accountPlan = localStorage.getItem('accountPlan') || 'free';
-    await setActiveSingleLoginSession();
+    await setActiveSingleLoginSession(true);
     startSingleLoginChecker();
     updateAuthUI();
     setAuthStatus('Login berhasil. Plan: ' + accountPlan.toUpperCase());
@@ -409,51 +482,46 @@
     setAuthStatus(isForced ? 'Logged out because this account was opened on another device.' : 'Logout berhasil.');
   }
 
-  // === FREE EXPORT LIMIT SYSTEM ===
+  // === FREE EXPORT LIMIT SYSTEM (DATABASE / ANTI MULTI-BROWSER BYPASS) ===
   const FREE_DAILY_LIMIT = 5;
 
   function getTodayKey(){
     const d = new Date();
-    return d.getFullYear() + '-' + (d.getMonth()+1) + '-' + d.getDate();
+    const y = d.getFullYear();
+    const m = String(d.getMonth()+1).padStart(2,'0');
+    const day = String(d.getDate()).padStart(2,'0');
+    return `${y}-${m}-${day}`;
   }
 
-  function getExportData(){
-    try{
-      return JSON.parse(localStorage.getItem('exportLimit') || '{}');
-    }catch(e){
-      return {};
+  async function getExportLimitRow(){
+    if(!supabaseClient || !authUser) return null;
+    const { data, error } = await supabaseClient
+      .from('user_export_limits')
+      .select('user_id, export_count, last_date')
+      .eq('user_id', authUser.id)
+      .maybeSingle();
+    if(error){
+      console.warn('Export limit read error:', error.message);
+      return null;
     }
+    return data;
   }
 
-  function saveExportData(data){
-    localStorage.setItem('exportLimit', JSON.stringify(data));
-  }
-
-  function getTodayExportCount(){
-    const today = getTodayKey();
-    const data = getExportData();
-    return Number(data[today] || 0);
-  }
-
-  function canExport(){
-    if(isProUser()) return true;
-    return getTodayExportCount() < FREE_DAILY_LIMIT;
-  }
-
-  function increaseExport(){
-    if(isProUser()) { updateExportLimitText(); return; }
-    const today = getTodayKey();
-    const data = getExportData();
-    data[today] = Number(data[today] || 0) + 1;
-    saveExportData(data);
-    updateExportLimitText();
-  }
-
-  function updateExportLimitText(){
-    if(el && el.statusText){
-      const used = getTodayExportCount();
-      el.statusText.textContent = isProUser() ? 'PRO active: unlimited export.' : ('Export used today: ' + used + '/' + FREE_DAILY_LIMIT);
+  async function updateExportLimitText(){
+    if(!el || !el.statusText) return;
+    if(isProUser()){
+      el.statusText.textContent = 'PRO active: unlimited export.';
+      return;
     }
+    if(!authUser){
+      el.statusText.textContent = 'Login required for export.';
+      return;
+    }
+    const row = await getExportLimitRow();
+    const today = getTodayKey();
+    let used = 0;
+    if(row && row.last_date === today) used = Number(row.export_count || 0);
+    el.statusText.textContent = 'Export used today: ' + used + '/' + FREE_DAILY_LIMIT;
   }
 
   function showUpgradePopup(){
@@ -472,7 +540,7 @@
     div.innerHTML = `
       <div style="background:#111827;color:#e5e7eb;border:1px solid #334155;border-radius:18px;padding:26px;max-width:360px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.45)">
         <h2 style="margin:0 0 10px;font-size:22px;color:#fff">Export Limit Reached</h2>
-        <p style="margin:0 0 18px;color:#cbd5e1;line-height:1.5">Free plan includes 5 exports per day. Login and upgrade to Pro for unlimited export.</p>
+        <p style="margin:0 0 18px;color:#cbd5e1;line-height:1.5">Free plan includes 5 exports per day. Upgrade to Pro for unlimited export.</p>
         <div style="display:grid;gap:10px">
           <button id="upgradeProBtn" style="background:#f59e0b;color:#111827;border:0;border-radius:12px;padding:12px 16px;font-weight:900;cursor:pointer">Upgrade Pro</button>
           <button id="closeUpgradeBtn" style="background:transparent;color:#cbd5e1;border:1px solid #334155;border-radius:12px;padding:10px 16px;font-weight:700;cursor:pointer">Close</button>
@@ -484,12 +552,59 @@
     document.getElementById('upgradeProBtn').onclick = () => { window.location.href = '/#pricing'; };
   }
 
-  function beforeExportCheck(){
-    if(!canExport()){
+  async function beforeExportCheck(){
+    if(isProUser()) return true;
+    if(!supabaseClient || !authUser){
+      alert('Login dulu untuk export. Free plan dapat 5 export per hari.');
+      return false;
+    }
+    const sessionOk = await verifySingleLoginSession();
+    if(!sessionOk) return false;
+
+    const today = getTodayKey();
+    let row = await getExportLimitRow();
+
+    if(!row){
+      const { error } = await supabaseClient
+        .from('user_export_limits')
+        .insert({ user_id: authUser.id, export_count: 1, last_date: today });
+      if(error){
+        alert('Export limit database belum siap: ' + error.message);
+        return false;
+      }
+      await updateExportLimitText();
+      return true;
+    }
+
+    if(row.last_date !== today){
+      const { error } = await supabaseClient
+        .from('user_export_limits')
+        .update({ export_count: 1, last_date: today })
+        .eq('user_id', authUser.id);
+      if(error){
+        alert('Export limit update error: ' + error.message);
+        return false;
+      }
+      await updateExportLimitText();
+      return true;
+    }
+
+    const used = Number(row.export_count || 0);
+    if(used >= FREE_DAILY_LIMIT){
+      await updateExportLimitText();
       showUpgradePopup();
       return false;
     }
-    increaseExport();
+
+    const { error } = await supabaseClient
+      .from('user_export_limits')
+      .update({ export_count: used + 1, last_date: today })
+      .eq('user_id', authUser.id);
+    if(error){
+      alert('Export limit update error: ' + error.message);
+      return false;
+    }
+    await updateExportLimitText();
     return true;
   }
 
@@ -653,10 +768,9 @@
   if(getAuthEl('upgradeAccountBtn')) getAuthEl('upgradeAccountBtn').addEventListener('click',()=>{ window.location.href='/' + '#pricing'; });
   if(getAuthEl('togglePasswordBtn')) getAuthEl('togglePasswordBtn').addEventListener('click', e=>togglePasswordVisibility('authPassword', e.currentTarget));
   if(getAuthEl('toggleNewPasswordBtn')) getAuthEl('toggleNewPasswordBtn').addEventListener('click', e=>togglePasswordVisibility('newPassword', e.currentTarget));
-  if(getAuthEl('toggleChangePasswordBtn')) getAuthEl('toggleChangePasswordBtn').addEventListener('click', e=>togglePasswordVisibility('changePasswordInput', e.currentTarget));
   if(getAuthEl('forgotPasswordBtn')) getAuthEl('forgotPasswordBtn').addEventListener('click', sendResetPassword);
   if(getAuthEl('updatePasswordBtn')) getAuthEl('updatePasswordBtn').addEventListener('click', updateNewPassword);
-  if(getAuthEl('changePasswordBtn')) getAuthEl('changePasswordBtn').addEventListener('click', changeAccountPassword);
+  if(getAuthEl('openChangePasswordBtn')) getAuthEl('openChangePasswordBtn').addEventListener('click', openChangePasswordFlow);
   if(getAuthEl('cancelResetBtn')) getAuthEl('cancelResetBtn').addEventListener('click', async ()=>{passwordRecoveryMode=false;showResetPanel(false);cleanRecoveryUrl();if(supabaseClient) await supabaseClient.auth.signOut();authUser=null;updateAuthUI();});
   initAuth();
 
@@ -668,14 +782,14 @@
   window.addEventListener('keydown',e=>{const tag=document.activeElement?.tagName?.toLowerCase(),typing=tag==='input'||tag==='textarea'||tag==='select';if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();undo();return}if(!typing&&(e.key==='Delete'||e.key==='Backspace')){if(state.selectedId){e.preventDefault();deleteSelected();return}if(state.images.length){e.preventDefault();save();state.images.splice(state.currentIndex,1);if(state.currentIndex>=state.images.length)state.currentIndex=Math.max(0,state.images.length-1);state.selectedId=null;state.selectedType=null;el.imgCount.textContent=state.images.length;if(state.images.length){renderThumbs();renderImage(state.currentIndex)}else{renderThumbs();clearStage();el.imagesInput.value=''}el.statusText.textContent='Image deleted.'}}});
   el.downloadCurrentBtn.addEventListener('click',async()=>{
     if(!currentImage()){alert('No images yet.');return}
-    if(!beforeExportCheck())return;
+    if(!(await beforeExportCheck()))return;
     const blob=await exportImageAt(state.currentIndex);
     downloadBlob(blob,outName(currentImage().name));
   });
 
   el.downloadAllBtn.addEventListener('click',async()=>{
     if(!state.images.length){alert('No images yet.');return}
-    if(!beforeExportCheck())return;
+    if(!(await beforeExportCheck()))return;
     const keep=state.currentIndex;
     for(let i=0;i<state.images.length;i++){
       renderImage(i);
@@ -688,7 +802,7 @@
   function toNormalCase(txt){return String(txt||'').toLowerCase().split(' ').filter(Boolean).map(w=>w.charAt(0).toUpperCase()+w.slice(1)).join(' ')}function applyTextCase(mode){const sel=selectedItem();if(!sel||sel.type!=='text'){alert('Select text first.');return}save();state.images.forEach(img=>{const it=img.items.find(x=>x.group===sel.group&&x.type==='text');if(it&&it.text){if(mode==='upper')it.text=String(it.text).toUpperCase();if(mode==='normal')it.text=toNormalCase(it.text)}});renderImage(state.currentIndex);el.statusText.textContent=mode==='upper'?'SELECTED TEXT UPPERCASE':'SELECTED TEXT NORMAL CASE'}el.caseUpper.addEventListener('click',()=>applyTextCase('upper'));el.caseNormal.addEventListener('click',()=>applyTextCase('normal'));
   el.downloadZipBtn.addEventListener('click',async()=>{
     if(!state.images.length){alert('No images yet.');return}
-    if(!beforeExportCheck())return;
+    if(!(await beforeExportCheck()))return;
     if(typeof JSZip==='undefined'){alert('JSZip failed to load. Please make sure internet is active when opening this file.');return}
     const zip=new JSZip(),used={},keep=state.currentIndex;
     el.statusText.textContent='Creating ZIP...';
