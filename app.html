@@ -383,8 +383,8 @@
 
                 const updateResult = await promiseTimeout(
                   supabaseClient.auth.updateUser({ password:newPass }),
-                  15000,
-                  'Save password timeout. Coba refresh lalu login ulang.'
+                  30000,
+                  'Save password timeout. Password mungkin sudah tersimpan. Coba login ulang dengan password baru.'
                 );
 
                 if(updateResult.error){
@@ -516,21 +516,32 @@
       startSingleLoginChecker();
     }
 
-    supabaseClient.auth.onAuthStateChange(async (event, session) => {
+    supabaseClient.auth.onAuthStateChange((event, session) => {
       authUser = session ? session.user : null;
       accountPlan = localStorage.getItem('accountPlan') || 'free';
+
       if(event === 'PASSWORD_RECOVERY'){
         passwordRecoveryMode = true;
         showResetPanel(true);
         setAuthStatus('Password recovery mode. Enter your new password.');
         return;
       }
-      if(authUser){
-        if(event === 'SIGNED_IN') await setActiveSingleLoginSession(true);
-        await verifySingleLoginSession();
-        startSingleLoginChecker();
-      }
+
       updateAuthUI();
+
+      // IMPORTANT: do not await Supabase calls inside onAuthStateChange.
+      // It can make update password / logout freeze in some browsers.
+      if(authUser){
+        setTimeout(async()=>{
+          try{
+            if(event === 'SIGNED_IN') await setActiveSingleLoginSession(true);
+            await verifySingleLoginSession();
+            startSingleLoginChecker();
+          }catch(err){
+            console.warn('auth state async task failed', err);
+          }
+        },0);
+      }
     });
   }
 
@@ -577,16 +588,25 @@
         singleLoginTimer = null;
       }
       clearLocalActiveSessionToken(authUser && authUser.id);
-      if(supabaseClient) await supabaseClient.auth.signOut();
+
+      // Make logout instant in UI. Supabase signOut can sometimes wait on network/auth callbacks.
+      const signOutPromise = supabaseClient ? supabaseClient.auth.signOut() : Promise.resolve();
+      Promise.race([
+        signOutPromise.catch(err=>console.warn('Logout error:', err)),
+        new Promise(resolve=>setTimeout(resolve, 1500))
+      ]).finally(()=>{
+        authUser = null;
+        accountPlan = 'free';
+        updateAuthUI();
+        setAuthStatus(isForced ? 'Account logged out because this account was opened on another device.' : 'Logout berhasil.');
+        setTimeout(()=>location.reload(), isForced ? 600 : 250);
+      });
     }catch(err){
       console.warn('Logout error:', err);
-    }
-    authUser = null;
-    accountPlan = 'free';
-    updateAuthUI();
-    setAuthStatus(isForced ? 'Account logged out because this account was opened on another device.' : 'Logout berhasil.');
-    if(isForced){
-      setTimeout(()=>location.reload(), 500);
+      authUser = null;
+      accountPlan = 'free';
+      updateAuthUI();
+      setTimeout(()=>location.reload(), 250);
     }
   }
 
