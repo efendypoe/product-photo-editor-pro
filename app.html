@@ -171,42 +171,82 @@
     if(button) button.textContent = input.type === 'password' ? '👁' : '🙈';
   }
 
-  function newDeviceSessionToken(){
-    const token = 'dev_' + Date.now() + '_' + Math.random().toString(36).slice(2,12);
-    sessionStorage.setItem(SINGLE_LOGIN_STORAGE_KEY, token);
+  function makeSessionToken(){
+    return 'sess_' + Date.now() + '_' + Math.random().toString(36).slice(2,14);
+  }
+
+  function browserTokenKey(){ return 'epp_browser_token'; }
+  function activeTokenKey(userId){ return 'epp_active_session_token_' + userId; }
+
+  function getBrowserToken(){
+    let token = localStorage.getItem(browserTokenKey());
+    if(!token){
+      token = 'browser_' + Date.now() + '_' + Math.random().toString(36).slice(2,14);
+      localStorage.setItem(browserTokenKey(), token);
+    }
     return token;
   }
 
-  function getDeviceSessionToken(){
-    let token = sessionStorage.getItem(SINGLE_LOGIN_STORAGE_KEY);
-    if(!token) token = newDeviceSessionToken();
-    return token;
+  function getLocalActiveSessionToken(userId){
+    return localStorage.getItem(activeTokenKey(userId));
   }
 
-  async function setActiveSingleLoginSession(forceNew=false){
+  function setLocalActiveSessionToken(userId, token){
+    localStorage.setItem(activeTokenKey(userId), token);
+  }
+
+  function clearLocalActiveSessionToken(userId){
+    if(userId) localStorage.removeItem(activeTokenKey(userId));
+  }
+
+  async function setActiveSingleLoginSession(forceNew=true){
     if(!supabaseClient || !authUser) return false;
-    const token = forceNew ? newDeviceSessionToken() : getDeviceSessionToken();
-    let { error } = await supabaseClient
+    const token = forceNew ? (getBrowserToken() + ':' + makeSessionToken()) : (getLocalActiveSessionToken(authUser.id) || (getBrowserToken() + ':' + makeSessionToken()));
+
+    const { error } = await supabaseClient
       .from('user_active_sessions')
       .upsert({ user_id: authUser.id, session_token: token, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
+
     if(error){
-      const updateResult = await supabaseClient
-        .from('user_active_sessions')
-        .update({ session_token: token, updated_at: new Date().toISOString() })
-        .eq('user_id', authUser.id);
-      error = updateResult.error;
-    }
-    if(error){
-      console.warn('Single login upsert/update error:', error.message);
-      setAuthStatus('Single login warning: ' + error.message);
+      console.warn('Single login set error:', error.message);
+      setAuthStatus('Single login DB warning: ' + error.message);
+      alert('Single login belum aktif: ' + error.message + '\nPastikan tabel user_active_sessions sudah dibuat di Supabase.');
       return false;
     }
+
+    setLocalActiveSessionToken(authUser.id, token);
     return true;
+  }
+
+  function showForcedLogoutOverlay(){
+    const old=document.getElementById('forcedLogoutOverlay');
+    if(old) old.remove();
+    const div=document.createElement('div');
+    div.id='forcedLogoutOverlay';
+    div.style.position='fixed';
+    div.style.inset='0';
+    div.style.background='rgba(0,0,0,.82)';
+    div.style.zIndex='999999';
+    div.style.display='flex';
+    div.style.alignItems='center';
+    div.style.justifyContent='center';
+    div.innerHTML=`<div style="background:#111827;color:#e5e7eb;border:1px solid #334155;border-radius:18px;padding:26px;width:min(92vw,390px);text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.45)">
+      <h2 style="margin:0 0 10px;color:#fff">Account Logged Out</h2>
+      <p style="margin:0 0 18px;color:#cbd5e1;line-height:1.5">Akun ini sudah login di browser/device lain. Session ini otomatis logout.</p>
+      <button id="forcedLogoutOk" style="background:#f59e0b;color:#111827;border:0;border-radius:12px;padding:12px 18px;font-weight:900;cursor:pointer">OK</button>
+    </div>`;
+    document.body.appendChild(div);
+    document.getElementById('forcedLogoutOk').onclick=()=>location.reload();
   }
 
   async function verifySingleLoginSession(){
     if(!supabaseClient || !authUser || forcedLogoutInProgress) return true;
-    const token = getDeviceSessionToken();
+    const localToken = getLocalActiveSessionToken(authUser.id);
+    if(!localToken){
+      await setActiveSingleLoginSession(true);
+      return true;
+    }
+
     const { data, error } = await supabaseClient
       .from('user_active_sessions')
       .select('session_token')
@@ -215,17 +255,18 @@
 
     if(error){
       console.warn('Single login check error:', error.message);
+      setAuthStatus('Single login check warning: ' + error.message);
       return true;
     }
 
     if(!data || !data.session_token){
-      await setActiveSingleLoginSession();
+      await setActiveSingleLoginSession(false);
       return true;
     }
 
-    if(data.session_token !== token){
+    if(data.session_token !== localToken){
       forcedLogoutInProgress = true;
-      alert('Akun ini login di device/browser lain. Session di sini otomatis logout.');
+      showForcedLogoutOverlay();
       await logoutAccount(true);
       forcedLogoutInProgress = false;
       return false;
@@ -235,7 +276,7 @@
 
   function startSingleLoginChecker(){
     if(singleLoginTimer) clearInterval(singleLoginTimer);
-    singleLoginTimer = setInterval(()=>{ verifySingleLoginSession().catch(err=>console.warn('single login check failed', err)); }, 2000);
+    singleLoginTimer = setInterval(()=>{ verifySingleLoginSession().catch(err=>console.warn('single login check failed', err)); }, 1500);
   }
 
   window.addEventListener('focus', ()=>{
@@ -290,6 +331,13 @@
     btn.onclick=()=>{input.type=input.type==='password'?'text':'password';btn.textContent=input.type==='password'?'👁':'🙈'};
   }
 
+  function promiseTimeout(promise, ms, message){
+    return Promise.race([
+      promise,
+      new Promise((_, reject)=>setTimeout(()=>reject(new Error(message||'Request timeout')), ms))
+    ]);
+  }
+
   async function openChangePasswordFlow(){
     if(!supabaseClient || !authUser) return alert('Harus login dulu.');
     showModal({
@@ -298,17 +346,28 @@
       bodyHtml: passwordInputHtml('currentPasswordModalInput','Current password'),
       okText:'OK',
       onOk: async()=>{
+        const okBtn=document.getElementById('changePasswordModal_ok');
         try{
           const current=(document.getElementById('currentPasswordModalInput')?.value||'');
           if(current.length<6) return alert('Current password minimal 6 karakter.');
           const email=authUser.email;
-          const okBtn=document.getElementById('changePasswordModal_ok');
           if(okBtn){okBtn.disabled=true;okBtn.textContent='Checking...';}
-          const { error } = await supabaseClient.auth.signInWithPassword({ email, password: current });
-          if(error){
+
+          const loginResult = await promiseTimeout(
+            supabaseClient.auth.signInWithPassword({ email, password: current }),
+            15000,
+            'Check current password timeout. Coba lagi.'
+          );
+
+          if(loginResult.error){
             if(okBtn){okBtn.disabled=false;okBtn.textContent='OK';}
             return alert('Current password salah.');
           }
+
+          authUser = loginResult.data.user;
+          await setActiveSingleLoginSession(true);
+          startSingleLoginChecker();
+
           removeModal('changePasswordModal');
           showModal({
             id:'newPasswordModal',
@@ -316,27 +375,36 @@
             bodyHtml: passwordInputHtml('newPasswordModalInput','New password minimum 6 characters'),
             okText:'OK',
             onOk: async()=>{
+              const ok2=document.getElementById('newPasswordModal_ok');
               try{
                 const newPass=(document.getElementById('newPasswordModalInput')?.value||'');
                 if(newPass.length<6) return alert('New password minimal 6 karakter.');
-                const ok2=document.getElementById('newPasswordModal_ok');
                 if(ok2){ok2.disabled=true;ok2.textContent='Saving...';}
-                const { error:updateError } = await supabaseClient.auth.updateUser({ password:newPass });
-                if(updateError){
+
+                const updateResult = await promiseTimeout(
+                  supabaseClient.auth.updateUser({ password:newPass }),
+                  15000,
+                  'Save password timeout. Coba refresh lalu login ulang.'
+                );
+
+                if(updateResult.error){
                   if(ok2){ok2.disabled=false;ok2.textContent='OK';}
-                  return alert(updateError.message);
+                  return alert(updateResult.error.message);
                 }
+
                 removeModal('newPasswordModal');
                 alert('Password changed. Please login again with your new password.');
                 await logoutAccount(false);
                 location.reload();
               }catch(err){
+                if(ok2){ok2.disabled=false;ok2.textContent='OK';}
                 alert('Change password error: '+(err.message||err));
               }
             }
           });
           setTimeout(()=>wireModalPasswordEye('newPasswordModalInput'),0);
         }catch(err){
+          if(okBtn){okBtn.disabled=false;okBtn.textContent='OK';}
           alert('Change password error: '+(err.message||err));
         }
       }
@@ -440,7 +508,7 @@
     updateAuthUI();
     if(authUser){
       // If browser/tab has no single-login token, make this session the active one.
-      if(!sessionStorage.getItem(SINGLE_LOGIN_STORAGE_KEY)){
+      if(!getLocalActiveSessionToken(authUser.id)){
         await setActiveSingleLoginSession(true);
       }else{
         await verifySingleLoginSession();
@@ -508,7 +576,7 @@
         clearInterval(singleLoginTimer);
         singleLoginTimer = null;
       }
-      sessionStorage.removeItem(SINGLE_LOGIN_STORAGE_KEY);
+      clearLocalActiveSessionToken(authUser && authUser.id);
       if(supabaseClient) await supabaseClient.auth.signOut();
     }catch(err){
       console.warn('Logout error:', err);
