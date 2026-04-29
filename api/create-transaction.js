@@ -15,10 +15,6 @@ export default async function handler(req, res) {
       yearly: { name: "Pro Yearly", amount: 599000 }
     };
 
-    if (!plans[plan]) {
-      return res.status(400).json({ error: "Invalid plan" });
-    }
-
     const userResp = await fetch(`${process.env.SUPABASE_URL}/auth/v1/user`, {
       headers: {
         apikey: process.env.SUPABASE_SERVICE_ROLE_KEY,
@@ -28,43 +24,19 @@ export default async function handler(req, res) {
 
     const user = await userResp.json();
 
-    if (!user?.id || !user?.email) {
-      return res.status(401).json({ error: "Invalid user" });
+    if (!user?.id) {
+      return res.status(401).json({ error: "Invalid user", user });
     }
 
     const orderId = `EPP-${plan}-${Date.now()}`;
 
-   const insertRes = await fetch(`${process.env.SUPABASE_URL}/rest/v1/payment_orders`, {
-  method: "POST",
-  headers: {
-    apikey: process.env.SUPABASE_SERVICE_ROLE_KEY,
-    Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
-    "Content-Type": "application/json",
-    Prefer: "return=representation"
-  },
-  body: JSON.stringify({
-    order_id: orderId,
-    user_id: user.id,
-    plan,
-    amount: plans[plan].amount,
-    status: "pending"
-  })
-});
-
-const insertData = await insertRes.text();
-
-if (!insertRes.ok) {
-  return res.status(500).json({
-    error: "SUPABASE INSERT FAILED",
-    detail: insertData
-  });
-}
+    const insertRes = await fetch(`${process.env.SUPABASE_URL}/rest/v1/payment_orders`, {
       method: "POST",
       headers: {
         apikey: process.env.SUPABASE_SERVICE_ROLE_KEY,
         Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
         "Content-Type": "application/json",
-        Prefer: "return=minimal"
+        Prefer: "return=representation"
       },
       body: JSON.stringify({
         order_id: orderId,
@@ -75,42 +47,21 @@ if (!insertRes.ok) {
       })
     });
 
-    const midtransResp = await fetch("https://app.sandbox.midtrans.com/snap/v1/transactions", {
-      method: "POST",
-      headers: {
-        Authorization: "Basic " + Buffer.from(process.env.MIDTRANS_SERVER_KEY + ":").toString("base64"),
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        transaction_details: {
-          order_id: orderId,
-          gross_amount: plans[plan].amount
-        },
-        customer_details: {
-          email: user.email
-        },
-        item_details: [{
-          id: plan,
-          price: plans[plan].amount,
-          quantity: 1,
-          name: plans[plan].name
-        }],
-        callbacks: {
-          finish: "https://editorproductpro.com/app.html"
-        }
-      })
-    });
+    const insertText = await insertRes.text();
 
-    const data = await midtransResp.json();
-
-    if (!midtransResp.ok) {
-      return res.status(500).json(data);
+    if (!insertRes.ok) {
+      return res.status(500).json({
+        error: "SUPABASE INSERT FAILED",
+        status: insertRes.status,
+        detail: insertText
+      });
     }
 
     return res.status(200).json({
-      token: data.token,
-      redirect_url: data.redirect_url,
-      order_id: orderId
+      debug: true,
+      message: "ORDER SAVED TO SUPABASE",
+      order_id: orderId,
+      supabase_result: insertText
     });
 
   } catch (err) {
