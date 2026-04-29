@@ -176,14 +176,16 @@
     return 'sess_' + Date.now() + '_' + Math.random().toString(36).slice(2,14);
   }
 
-  function browserTokenKey(){ return 'epp_browser_token'; }
+  function browserTokenKey(userId){ return 'epp_browser_token_' + (userId || 'global'); }
   function activeTokenKey(userId){ return 'epp_active_session_token_' + userId; }
 
-  function getBrowserToken(){
-    let token = localStorage.getItem(browserTokenKey());
+  function getBrowserToken(userId){
+    const key = browserTokenKey(userId || (authUser && authUser.id) || 'global');
+    let token = localStorage.getItem(key);
     if(!token){
-      token = 'browser_' + Date.now() + '_' + Math.random().toString(36).slice(2,14);
-      localStorage.setItem(browserTokenKey(), token);
+      const rnd = (window.crypto && window.crypto.randomUUID) ? window.crypto.randomUUID() : (Date.now() + '_' + Math.random().toString(36).slice(2,14));
+      token = 'browser_' + rnd;
+      localStorage.setItem(key, token);
     }
     return token;
   }
@@ -202,7 +204,7 @@
 
   async function setActiveSingleLoginSession(forceNew=true){
     if(!supabaseClient || !authUser) return false;
-    const token = forceNew ? (getBrowserToken() + ':' + makeSessionToken()) : (getLocalActiveSessionToken(authUser.id) || (getBrowserToken() + ':' + makeSessionToken()));
+    const token = getBrowserToken(authUser.id);
 
     const { error } = await supabaseClient
       .from('user_active_sessions')
@@ -211,7 +213,7 @@
     if(error){
       console.warn('Single login set error:', error.message);
       setAuthStatus('Single login DB warning: ' + error.message);
-      alert('Single login belum aktif: ' + error.message + '\nPastikan tabel user_active_sessions sudah dibuat di Supabase.');
+      alert('Single login belum aktif: ' + error.message + '\nPastikan permission tabel user_active_sessions sudah benar di Supabase.');
       return false;
     }
 
@@ -242,10 +244,10 @@
 
   async function verifySingleLoginSession(){
     if(!supabaseClient || !authUser || forcedLogoutInProgress) return true;
-    const localToken = getLocalActiveSessionToken(authUser.id);
+    let localToken = getLocalActiveSessionToken(authUser.id);
     if(!localToken){
-      await setActiveSingleLoginSession(true);
-      return true;
+      localToken = getBrowserToken(authUser.id);
+      setLocalActiveSessionToken(authUser.id, localToken);
     }
 
     const { data, error } = await supabaseClient
@@ -519,12 +521,7 @@
     accountPlan = localStorage.getItem('accountPlan') || 'free';
     updateAuthUI();
     if(authUser){
-      // If browser/tab has no single-login token, make this session the active one.
-      if(!getLocalActiveSessionToken(authUser.id)){
-        await setActiveSingleLoginSession(true);
-      }else{
-        await verifySingleLoginSession();
-      }
+      await verifySingleLoginSession();
       startSingleLoginChecker();
     }
 
