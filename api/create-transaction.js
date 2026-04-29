@@ -1,10 +1,14 @@
 export default async function handler(req, res) {
   if (req.method !== "POST") {
-    return res.status(200).json({ error: "Method not allowed" });
+    return res.status(405).json({ error: "Method not allowed" });
   }
 
   try {
-    const { plan } = req.body;
+    const auth = req.headers.authorization || "";
+    const token = auth.replace("Bearer ", "");
+    const { plan = "monthly" } = req.body || {};
+
+    if (!token) return res.status(401).json({ error: "Not logged in" });
 
     const plans = {
       monthly: { name: "Pro Monthly", amount: 69000 },
@@ -12,60 +16,80 @@ export default async function handler(req, res) {
     };
 
     if (!plans[plan]) {
-      return res.status(200).json({ error: "Invalid plan" });
+      return res.status(400).json({ error: "Invalid plan" });
     }
 
-    const order_id = "ORD-" + Date.now();
+    const userResp = await fetch(`${process.env.SUPABASE_URL}/auth/v1/user`, {
+      headers: {
+        apikey: process.env.SUPABASE_SERVICE_ROLE_KEY,
+        Authorization: `Bearer ${token}`
+      }
+    });
 
-    // 🔥 SIMPAN KE SUPABASE DULU
+    const user = await userResp.json();
+
+    if (!user?.id || !user?.email) {
+      return res.status(401).json({ error: "Invalid user" });
+    }
+
+    const orderId = `EPP-${plan}-${Date.now()}`;
+
     await fetch(`${process.env.SUPABASE_URL}/rest/v1/payment_orders`, {
       method: "POST",
       headers: {
         apikey: process.env.SUPABASE_SERVICE_ROLE_KEY,
         Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+        "Content-Type": "application/json",
+        Prefer: "return=minimal"
+      },
+      body: JSON.stringify({
+        order_id: orderId,
+        user_id: user.id,
+        plan,
+        amount: plans[plan].amount,
+        status: "pending"
+      })
+    });
+
+    const midtransResp = await fetch("https://app.sandbox.midtrans.com/snap/v1/transactions", {
+      method: "POST",
+      headers: {
+        Authorization: "Basic " + Buffer.from(process.env.MIDTRANS_SERVER_KEY + ":").toString("base64"),
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        order_id,
-        plan,
-        status: "pending",
-        created_at: new Date().toISOString()
-      })
-    });
-
-    // 🔥 BUAT TRANSAKSI MIDTRANS
-    const midtransRes = await fetch("https://app.sandbox.midtrans.com/snap/v1/transactions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization:
-          "Basic " +
-          Buffer.from(process.env.MIDTRANS_SERVER_KEY + ":").toString("base64")
-      },
-      body: JSON.stringify({
         transaction_details: {
-          order_id,
+          order_id: orderId,
           gross_amount: plans[plan].amount
         },
-        item_details: [
-          {
-            id: plan,
-            price: plans[plan].amount,
-            quantity: 1,
-            name: plans[plan].name
-          }
-        ]
+        customer_details: {
+          email: user.email
+        },
+        item_details: [{
+          id: plan,
+          price: plans[plan].amount,
+          quantity: 1,
+          name: plans[plan].name
+        }],
+        callbacks: {
+          finish: "https://editorproductpro.com/app.html"
+        }
       })
     });
 
-    const data = await midtransRes.json();
+    const data = await midtransResp.json();
+
+    if (!midtransResp.ok) {
+      return res.status(500).json(data);
+    }
 
     return res.status(200).json({
       token: data.token,
-      order_id
+      redirect_url: data.redirect_url,
+      order_id: orderId
     });
 
   } catch (err) {
-    return res.status(200).json({ error: err.message });
+    return res.status(500).json({ error: err.message });
   }
 }
