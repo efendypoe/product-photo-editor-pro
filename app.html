@@ -21,6 +21,7 @@
   </style>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://app.midtrans.com/snap/snap.js" data-client-key="Mid-client-9QTsW-g8OtjgBOSL"></script>
 </head>
 <body>
 <div class="app">
@@ -688,7 +689,41 @@
     `;
     document.body.appendChild(div);
     document.getElementById('closeUpgradeBtn').onclick = () => div.remove();
-    document.getElementById('upgradeProBtn').onclick = () => { window.location.href = '/#pricing'; };
+    document.getElementById('upgradeProBtn').onclick = () => { div.remove(); buyPro('monthly'); };
+  }
+
+  async function buyPro(plan='monthly'){
+    try{
+      if(!supabaseClient || !authUser){ alert('Login dulu sebelum upgrade Pro.'); return; }
+      const sessionOk = await verifySingleLoginSession();
+      if(!sessionOk) return;
+      const sessionResp = await supabaseClient.auth.getSession();
+      const accessToken = sessionResp && sessionResp.data && sessionResp.data.session ? sessionResp.data.session.access_token : '';
+      if(!accessToken){ alert('Session login tidak ditemukan. Silakan logout lalu login ulang.'); return; }
+      setAuthStatus('Membuat transaksi pembayaran...');
+      const response = await fetch('/api/create-transaction', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + accessToken },
+        body: JSON.stringify({ plan: plan || 'monthly' })
+      });
+      const data = await response.json().catch(()=>({}));
+      if(!response.ok || (!data.token && !data.redirect_url)){
+        console.error('Create transaction error:', data);
+        alert('Gagal membuat transaksi: ' + (data.error || data.status_message || JSON.stringify(data)));
+        setAuthStatus('Payment error.');
+        return;
+      }
+      setAuthStatus('Payment ready.');
+      if(window.snap && data.token){
+        window.snap.pay(data.token, {
+          onSuccess: function(){ alert('Pembayaran sukses. Akun Pro akan aktif setelah sistem memverifikasi pembayaran.'); location.reload(); },
+          onPending: function(){ alert('Menunggu pembayaran. Selesaikan pembayaran sesuai instruksi Midtrans.'); },
+          onError: function(){ alert('Pembayaran gagal. Silakan coba lagi.'); setAuthStatus('Payment failed.'); },
+          onClose: function(){ setAuthStatus('Payment popup closed.'); }
+        });
+      } else if(data.redirect_url){ window.location.href = data.redirect_url; }
+      else { alert('Payment token tidak tersedia.'); }
+    }catch(err){ console.error(err); alert('Payment error: ' + err.message); setAuthStatus('Payment error.'); }
   }
 
   async function beforeExportCheck(){
@@ -904,7 +939,7 @@
   if(getAuthEl('loginBtn')) getAuthEl('loginBtn').addEventListener('click', loginAccount);
   if(getAuthEl('registerBtn')) getAuthEl('registerBtn').addEventListener('click', registerAccount);
   if(getAuthEl('logoutBtn')) getAuthEl('logoutBtn').addEventListener('click', ()=>logoutAccount(false));
-  if(getAuthEl('upgradeAccountBtn')) getAuthEl('upgradeAccountBtn').addEventListener('click',()=>{ window.location.href='/' + '#pricing'; });
+  if(getAuthEl('upgradeAccountBtn')) getAuthEl('upgradeAccountBtn').addEventListener('click',()=>buyPro('monthly'));
   if(getAuthEl('togglePasswordBtn')) getAuthEl('togglePasswordBtn').addEventListener('click', e=>togglePasswordVisibility('authPassword', e.currentTarget));
   if(getAuthEl('toggleNewPasswordBtn')) getAuthEl('toggleNewPasswordBtn').addEventListener('click', e=>togglePasswordVisibility('newPassword', e.currentTarget));
   if(getAuthEl('forgotPasswordBtn')) getAuthEl('forgotPasswordBtn').addEventListener('click', sendResetPassword);
