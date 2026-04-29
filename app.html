@@ -21,7 +21,7 @@
   </style>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-  <script src="https://app.midtrans.com/snap/snap.js" data-client-key="Mid-client-9QTsW-g8OtjgBOSL"></script>
+  <!-- Midtrans uses redirect_url from backend, no client key needed in frontend -->
 </head>
 <body>
 <div class="app">
@@ -711,15 +711,17 @@
         return;
       }
       setAuthStatus('Payment ready.');
-      if(window.snap && data.token){
+      // Sandbox-safe: use Midtrans redirect_url from backend to avoid production/sandbox Snap mismatch.
+      if(data.redirect_url){
+        window.location.href = data.redirect_url;
+      } else if(window.snap && data.token){
         window.snap.pay(data.token, {
           onSuccess: function(){ alert('Pembayaran sukses. Akun Pro akan aktif setelah sistem memverifikasi pembayaran.'); location.reload(); },
           onPending: function(){ alert('Menunggu pembayaran. Selesaikan pembayaran sesuai instruksi Midtrans.'); },
           onError: function(){ alert('Pembayaran gagal. Silakan coba lagi.'); setAuthStatus('Payment failed.'); },
           onClose: function(){ setAuthStatus('Payment popup closed.'); }
         });
-      } else if(data.redirect_url){ window.location.href = data.redirect_url; }
-      else { alert('Payment token tidak tersedia.'); }
+      } else { alert('Payment redirect tidak tersedia.'); }
     }catch(err){ console.error(err); alert('Payment error: ' + err.message); setAuthStatus('Payment error.'); }
   }
 
