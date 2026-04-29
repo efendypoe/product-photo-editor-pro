@@ -34,7 +34,31 @@ export default async function handler(req, res) {
 
     const orderId = `EPP-${plan}-${Date.now()}`;
 
-    await fetch(`${process.env.SUPABASE_URL}/rest/v1/payment_orders`, {
+   const insertRes = await fetch(`${process.env.SUPABASE_URL}/rest/v1/payment_orders`, {
+  method: "POST",
+  headers: {
+    apikey: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+    "Content-Type": "application/json",
+    Prefer: "return=representation"
+  },
+  body: JSON.stringify({
+    order_id: orderId,
+    user_id: user.id,
+    plan,
+    amount: plans[plan].amount,
+    status: "pending"
+  })
+});
+
+const insertData = await insertRes.text();
+
+if (!insertRes.ok) {
+  return res.status(500).json({
+    error: "SUPABASE INSERT FAILED",
+    detail: insertData
+  });
+}
       method: "POST",
       headers: {
         apikey: process.env.SUPABASE_SERVICE_ROLE_KEY,
