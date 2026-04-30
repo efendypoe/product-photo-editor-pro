@@ -522,7 +522,28 @@
         planBadge.textContent = 'Plan: ' + accountPlan.toUpperCase();
         planBadge.style.borderColor = isProUser() ? '#22c55e' : '#334155';
         planBadge.style.color = isProUser() ? '#22c55e' : '#e5e7eb';
+        planBadge.style.background = isProUser() ? 'rgba(34,197,94,.12)' : '#0b1220';
       }
+
+      const upgradeBtn = getAuthEl('upgradeAccountBtn');
+      if(upgradeBtn){
+        if(isProUser()){
+          upgradeBtn.textContent = 'PRO Active';
+          upgradeBtn.disabled = true;
+          upgradeBtn.style.background = '#16a34a';
+          upgradeBtn.style.color = '#052e16';
+          upgradeBtn.style.cursor = 'default';
+          upgradeBtn.title = 'Akun sudah aktif PRO';
+        }else{
+          upgradeBtn.textContent = 'Upgrade Pro';
+          upgradeBtn.disabled = false;
+          upgradeBtn.style.background = 'var(--accent)';
+          upgradeBtn.style.color = '#111827';
+          upgradeBtn.style.cursor = 'pointer';
+          upgradeBtn.title = '';
+        }
+      }
+
       setTimeout(()=>updateExportLimitText(),0);
     }else{
       loggedIn.classList.add('hidden');
@@ -703,6 +724,7 @@
   }
 
   function showUpgradePopup(){
+    if(isProUser()) return;
     const old = document.getElementById('upgradeLimitPopup');
     if(old) old.remove();
 
