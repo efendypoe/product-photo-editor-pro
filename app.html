@@ -156,6 +156,40 @@
     return accountPlan === 'pro';
   }
 
+  async function refreshAccountPlanFromSubscription(){
+    accountPlan = 'free';
+    try{
+      if(!supabaseClient || !authUser){
+        localStorage.setItem('accountPlan','free');
+        return 'free';
+      }
+      const { data, error } = await supabaseClient
+        .from('user_subscriptions')
+        .select('plan,status,expired_at')
+        .eq('user_id', authUser.id)
+        .maybeSingle();
+
+      if(error){
+        console.warn('Subscription read error:', error.message);
+        localStorage.setItem('accountPlan','free');
+        return 'free';
+      }
+
+      const now = new Date();
+      const expiredAt = data && data.expired_at ? new Date(data.expired_at) : null;
+      const active = data && data.status === 'active' && expiredAt && expiredAt > now;
+
+      accountPlan = active ? 'pro' : 'free';
+      localStorage.setItem('accountPlan', accountPlan);
+      return accountPlan;
+    }catch(err){
+      console.warn('Subscription check failed:', err);
+      accountPlan = 'free';
+      localStorage.setItem('accountPlan','free');
+      return 'free';
+    }
+  }
+
   function getAuthEl(id){
     return document.getElementById(id);
   }
@@ -519,6 +553,9 @@
     const { data } = await supabaseClient.auth.getSession();
     authUser = data && data.session ? data.session.user : null;
     accountPlan = localStorage.getItem('accountPlan') || 'free';
+    if(authUser){
+      await refreshAccountPlanFromSubscription();
+    }
     updateAuthUI();
     if(authUser){
       await verifySingleLoginSession();
@@ -543,6 +580,8 @@
       if(authUser){
         setTimeout(async()=>{
           try{
+            await refreshAccountPlanFromSubscription();
+            updateAuthUI();
             if(event === 'SIGNED_IN') await setActiveSingleLoginSession(true);
             await verifySingleLoginSession();
             startSingleLoginChecker();
@@ -567,6 +606,7 @@
     accountPlan = 'free';
     localStorage.setItem('accountPlan','free');
     if(authUser){
+      await refreshAccountPlanFromSubscription();
       await setActiveSingleLoginSession(true);
       startSingleLoginChecker();
     }
@@ -584,6 +624,7 @@
     if(error) return alert(error.message);
     authUser = data.user;
     accountPlan = localStorage.getItem('accountPlan') || 'free';
+    await refreshAccountPlanFromSubscription();
     await setActiveSingleLoginSession(true);
     startSingleLoginChecker();
     updateAuthUI();
@@ -692,6 +733,9 @@
   async function buyPro(plan='monthly'){
     try{
       if(!supabaseClient || !authUser){ alert('Login dulu sebelum upgrade Pro.'); return; }
+      await refreshAccountPlanFromSubscription();
+      updateAuthUI();
+      if(isProUser()){ alert('Akun kamu sudah PRO aktif.'); return; }
       const sessionOk = await verifySingleLoginSession();
       if(!sessionOk) return;
       const sessionResp = await supabaseClient.auth.getSession();
@@ -726,6 +770,8 @@
   }
 
   async function beforeExportCheck(){
+    await refreshAccountPlanFromSubscription();
+    updateAuthUI();
     if(isProUser()) return true;
     if(!supabaseClient || !authUser){
       alert('Login dulu untuk export. Free plan dapat 5 export per hari.');
