@@ -8,8 +8,6 @@ export default async function handler(req, res) {
     const token = auth.replace("Bearer ", "");
     const { plan = "monthly" } = req.body || {};
 
-    if (!token) return res.status(401).json({ error: "Not logged in" });
-
     const plans = {
       monthly: { name: "Pro Monthly", amount: 69000 },
       yearly: { name: "Pro Yearly", amount: 599000 }
@@ -23,11 +21,6 @@ export default async function handler(req, res) {
     });
 
     const user = await userResp.json();
-
-    if (!user?.id) {
-      return res.status(401).json({ error: "Invalid user", user });
-    }
-
     const orderId = `EPP-${plan}-${Date.now()}`;
 
     const insertRes = await fetch(`${process.env.SUPABASE_URL}/rest/v1/payment_orders`, {
@@ -51,20 +44,17 @@ export default async function handler(req, res) {
 
     if (!insertRes.ok) {
       return res.status(500).json({
-        error: "SUPABASE INSERT FAILED",
-        status: insertRes.status,
-        detail: insertText
+        error: `SUPABASE INSERT FAILED: ${insertText}`
       });
     }
 
     return res.status(200).json({
-      debug: true,
-      message: "ORDER SAVED TO SUPABASE",
-      order_id: orderId,
-      supabase_result: insertText
+      error: `DEBUG OK: Order tersimpan ${orderId}`
     });
 
   } catch (err) {
-    return res.status(500).json({ error: err.message });
+    return res.status(500).json({
+      error: `SERVER ERROR: ${err.message}`
+    });
   }
 }
