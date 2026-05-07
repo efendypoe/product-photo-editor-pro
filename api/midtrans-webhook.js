@@ -9,7 +9,6 @@ export default async function handler(req, res) {
     const body = req.body;
     const serverKey = process.env.MIDTRANS_SERVER_KEY;
 
-    // 🔐 VERIFY SIGNATURE
     const signature = crypto
       .createHash("sha512")
       .update(body.order_id + body.status_code + body.gross_amount + serverKey)
@@ -22,7 +21,6 @@ export default async function handler(req, res) {
     const orderId = body.order_id;
     const transactionStatus = body.transaction_status;
 
-    // 🔍 GET ORDER
     const orderRes = await fetch(
       `${process.env.SUPABASE_URL}/rest/v1/payment_orders?order_id=eq.${orderId}`,
       {
@@ -40,7 +38,11 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: "Order not found" });
     }
 
-    // 🔥 UPDATE STATUS ORDER
+    // ✅ Pastikan nominal pembayaran sama dengan order asli
+    if (Number(body.gross_amount) !== Number(order.amount)) {
+      return res.status(400).json({ error: "Invalid amount" });
+    }
+
     await fetch(`${process.env.SUPABASE_URL}/rest/v1/payment_orders?order_id=eq.${orderId}`, {
       method: "PATCH",
       headers: {
@@ -53,14 +55,17 @@ export default async function handler(req, res) {
       })
     });
 
-    // 🎯 JIKA PEMBAYARAN BERHASIL
-    if (transactionStatus === "settlement" || transactionStatus === "capture") {
+    // ✅ Payment valid hanya settlement, atau capture dengan fraud accept
+    const isPaid =
+      transactionStatus === "settlement" ||
+      (transactionStatus === "capture" && body.fraud_status === "accept");
+
+    if (isPaid) {
       const expired =
         order.plan === "yearly"
           ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
           : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
-      // 🔥 UPSERT SUBSCRIPTION
       await fetch(`${process.env.SUPABASE_URL}/rest/v1/user_subscriptions`, {
         method: "POST",
         headers: {
