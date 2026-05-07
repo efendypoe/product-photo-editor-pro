@@ -51,7 +51,7 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: "SUPABASE INSERT FAILED", detail: text });
     }
 
-    const mtResp = await fetch("https://app.midtrans.com/snap/v1/transactions", {
+    const mtResp = await fetch("https://app.sandbox.midtrans.com/snap/v1/transactions", {
       method: "POST",
       headers: {
         Authorization: "Basic " + Buffer.from(process.env.MIDTRANS_SERVER_KEY + ":").toString("base64"),
