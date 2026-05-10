@@ -434,7 +434,7 @@
 
                 removeModal('newPasswordModal');
                 alert('Password changed. Please login again with your new password.');
-                try{ localStorage.removeItem(SINGLE_LOGIN_TOKEN_KEY); }catch(e){}
+                try{ localStorage.removeItem(SINGLE_LOGIN_STORAGE_KEY); }catch(e){}
                 try{ await supabaseClient.auth.signOut({ scope:'local' }); }catch(e){}
                 authUser=null;
                 setTimeout(()=>location.reload(),300);
@@ -443,7 +443,7 @@
                 // user trapped in the modal. Force logout so they can retry with the new password.
                 removeModal('newPasswordModal');
                 alert('Password request finished. Please login again with your new password.');
-                try{ localStorage.removeItem(SINGLE_LOGIN_TOKEN_KEY); }catch(e){}
+                try{ localStorage.removeItem(SINGLE_LOGIN_STORAGE_KEY); }catch(e){}
                 try{ await supabaseClient.auth.signOut({ scope:'local' }); }catch(e){}
                 authUser=null;
                 setTimeout(()=>location.reload(),300);
@@ -615,24 +615,61 @@
   }
 
   async function registerAccount(){
-    if(!supabaseClient) return alert('Auth belum siap. Refresh halaman dulu.');
+    if(!supabaseClient) {
+      return alert('Auth belum siap. Refresh halaman dulu.');
+    }
+
     const email = (getAuthEl('authEmail')?.value || '').trim();
     const password = getAuthEl('authPassword')?.value || '';
-    if(!email || !password) return alert('Isi email dan password dulu.');
-    if(password.length < 6) return alert('Password minimal 6 karakter.');
 
-    const { data, error } = await supabaseClient.auth.signUp({ email, password });
-    if(error) return alert(error.message);
-    authUser = data.user || authUser;
-    accountPlan = 'free';
-    localStorage.setItem('accountPlan','free');
-    if(authUser){
-      await refreshAccountPlanFromSubscription();
-      await setActiveSingleLoginSession(true);
-      startSingleLoginChecker();
+    if(!email || !password){
+      return alert('Isi email dan password dulu.');
     }
-    updateAuthUI();
-    alert('Register berhasil. Kalau email confirmation aktif, cek email untuk verifikasi.');
+
+    if(password.length < 6){
+      return alert('Password minimal 6 karakter.');
+    }
+
+    setAuthStatus('Processing register...');
+
+    try {
+      const { data, error } = await supabaseClient.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: 'https://editorproductpro.com/app.html'
+        }
+      });
+
+      if(error){
+        console.error('Register error:', error);
+        setAuthStatus('Register failed.');
+        return alert(error.message);
+      }
+
+      // Jangan langsung insert/read table subscription atau single-login saat register.
+      // Ini mencegah error RLS/trigger Supabase muncul sebagai gagal register.
+      authUser = null;
+      accountPlan = 'free';
+      localStorage.setItem('accountPlan','free');
+
+      try{
+        await supabaseClient.auth.signOut({ scope:'local' });
+      }catch(e){
+        console.warn('Post-register local signout warning:', e);
+      }
+
+      updateAuthUI();
+      setAuthStatus('Register success. Please verify email and login.');
+
+      alert('Register berhasil.
+
+Silakan cek email untuk verifikasi akun, lalu login kembali.');
+    } catch(err){
+      console.error(err);
+      setAuthStatus('Register error.');
+      alert('Register error: ' + (err.message || err));
+    }
   }
 
   async function loginAccount(){
