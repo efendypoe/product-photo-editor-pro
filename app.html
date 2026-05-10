@@ -621,7 +621,6 @@
 
     const email = (getAuthEl('authEmail')?.value || '').trim();
     const password = getAuthEl('authPassword')?.value || '';
-    const registerBtn = getAuthEl('registerBtn');
 
     if(!email || !password){
       return alert('Isi email dan password dulu.');
@@ -631,11 +630,6 @@
       return alert('Password minimal 6 karakter.');
     }
 
-    const oldBtnText = registerBtn ? registerBtn.textContent : '';
-    if(registerBtn){
-      registerBtn.disabled = true;
-      registerBtn.textContent = 'Processing...';
-    }
     setAuthStatus('Processing register...');
 
     try {
@@ -650,8 +644,7 @@
       if(error){
         console.error('Register error:', error);
         setAuthStatus('Register failed.');
-        alert(error.message);
-        return;
+        return alert(error.message);
       }
 
       // Jangan langsung insert/read table subscription atau single-login saat register.
@@ -666,30 +659,14 @@
         console.warn('Post-register local signout warning:', e);
       }
 
-      const passInput = getAuthEl('authPassword');
-      if(passInput) passInput.value = '';
-
       updateAuthUI();
-      setAuthStatus('Register berhasil. Cek email untuk verifikasi lalu login.');
+      setAuthStatus('Register success. Please verify email and login.');
 
-      showModal({
-        id:'registerSuccessModal',
-        title:'Register Berhasil',
-        bodyHtml:`<p style="margin:0 0 10px;color:#cbd5e1;line-height:1.55">Akun sudah berhasil dibuat.</p>
-          <p style="margin:0;color:#cbd5e1;line-height:1.55">Silakan cek email <b style="color:#fff">${email}</b> untuk verifikasi akun. Setelah verifikasi, login kembali di editor.</p>`,
-        okText:'OK, Saya Mengerti',
-        cancelText:'Close',
-        onOk:()=>removeModal('registerSuccessModal')
-      });
+      alert('Register berhasil.\n\nSilakan cek email untuk verifikasi akun, lalu login kembali.');
     } catch(err){
       console.error(err);
       setAuthStatus('Register error.');
       alert('Register error: ' + (err.message || err));
-    } finally {
-      if(registerBtn){
-        registerBtn.disabled = false;
-        registerBtn.textContent = oldBtnText || 'Register';
-      }
     }
   }
 
@@ -807,7 +784,63 @@
     `;
     document.body.appendChild(div);
     document.getElementById('closeUpgradeBtn').onclick = () => div.remove();
-    document.getElementById('upgradeProBtn').onclick = () => { div.remove(); buyPro('monthly'); };
+    document.getElementById('upgradeProBtn').onclick = () => { div.remove(); openUpgradePopup(); };
+  }
+
+
+  function openUpgradePopup(){
+    if(!supabaseClient || !authUser){
+      alert('Login dulu sebelum upgrade Pro.');
+      return;
+    }
+    if(isProUser()){
+      alert('Akun kamu sudah PRO aktif.');
+      return;
+    }
+
+    const old = document.getElementById('planPopup');
+    if(old) old.remove();
+
+    const div = document.createElement('div');
+    div.id = 'planPopup';
+    div.style.position = 'fixed';
+    div.style.inset = '0';
+    div.style.background = 'rgba(0,0,0,.78)';
+    div.style.display = 'flex';
+    div.style.alignItems = 'center';
+    div.style.justifyContent = 'center';
+    div.style.zIndex = '999999';
+    div.style.padding = '18px';
+
+    div.innerHTML = `
+      <div style="width:min(94vw,430px);background:#111827;border:1px solid #334155;border-radius:24px;padding:24px;color:#e5e7eb;box-shadow:0 30px 80px rgba(0,0,0,.50)">
+        <h2 style="margin:0 0 8px;font-size:26px;color:#fff">Upgrade Pro</h2>
+        <div style="color:#94a3b8;margin-bottom:18px;line-height:1.6;font-size:14px">Pilih paket langganan yang cocok untuk kebutuhan edit foto produk kamu.</div>
+
+        <div style="display:grid;gap:14px">
+          <button id="chooseMonthly" type="button" style="border:1px solid #334155;background:#0b1220;color:#fff;border-radius:18px;padding:18px;text-align:left;cursor:pointer;width:100%">
+            <div style="font-size:20px;font-weight:900">Pro Monthly</div>
+            <div style="margin-top:6px;color:#f59e0b;font-size:28px;font-weight:900">Rp69.000</div>
+            <div style="margin-top:6px;color:#94a3b8;font-size:13px;line-height:1.5">Unlimited export, ZIP download, dan premium cleanup tools.</div>
+          </button>
+
+          <button id="chooseYearly" type="button" style="border:2px solid #f59e0b;background:linear-gradient(180deg,#1f2937,#111827);color:#fff;border-radius:18px;padding:18px;text-align:left;cursor:pointer;position:relative;width:100%">
+            <div style="position:absolute;top:14px;right:14px;background:#f59e0b;color:#111827;font-size:11px;font-weight:900;padding:5px 8px;border-radius:999px">BEST VALUE</div>
+            <div style="font-size:20px;font-weight:900">Pro Yearly</div>
+            <div style="margin-top:6px;color:#f59e0b;font-size:28px;font-weight:900">Rp599.000</div>
+            <div style="margin-top:6px;color:#94a3b8;font-size:13px;line-height:1.5">Lebih hemat Rp229.000 per tahun dibanding monthly.</div>
+          </button>
+        </div>
+
+        <button id="closePlanPopup" type="button" style="width:100%;margin-top:18px;border:1px solid #334155;background:transparent;color:#cbd5e1;border-radius:14px;padding:12px;font-weight:800;cursor:pointer">Cancel</button>
+      </div>
+    `;
+
+    document.body.appendChild(div);
+    document.getElementById('closePlanPopup').onclick = () => div.remove();
+    div.addEventListener('click', (e)=>{ if(e.target === div) div.remove(); });
+    document.getElementById('chooseMonthly').onclick = () => { div.remove(); buyPro('monthly'); };
+    document.getElementById('chooseYearly').onclick = () => { div.remove(); buyPro('yearly'); };
   }
 
   async function buyPro(plan='monthly'){
@@ -1064,7 +1097,7 @@
   if(getAuthEl('loginBtn')) getAuthEl('loginBtn').addEventListener('click', loginAccount);
   if(getAuthEl('registerBtn')) getAuthEl('registerBtn').addEventListener('click', registerAccount);
   if(getAuthEl('logoutBtn')) getAuthEl('logoutBtn').addEventListener('click', ()=>logoutAccount(false));
-  if(getAuthEl('upgradeAccountBtn')) getAuthEl('upgradeAccountBtn').addEventListener('click',()=>buyPro('monthly'));
+  if(getAuthEl('upgradeAccountBtn')) getAuthEl('upgradeAccountBtn').addEventListener('click', openUpgradePopup);
   if(getAuthEl('togglePasswordBtn')) getAuthEl('togglePasswordBtn').addEventListener('click', e=>togglePasswordVisibility('authPassword', e.currentTarget));
   if(getAuthEl('toggleNewPasswordBtn')) getAuthEl('toggleNewPasswordBtn').addEventListener('click', e=>togglePasswordVisibility('newPassword', e.currentTarget));
   if(getAuthEl('forgotPasswordBtn')) getAuthEl('forgotPasswordBtn').addEventListener('click', sendResetPassword);
