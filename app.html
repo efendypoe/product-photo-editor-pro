@@ -621,6 +621,7 @@
 
     const email = (getAuthEl('authEmail')?.value || '').trim();
     const password = getAuthEl('authPassword')?.value || '';
+    const registerBtn = getAuthEl('registerBtn');
 
     if(!email || !password){
       return alert('Isi email dan password dulu.');
@@ -630,6 +631,11 @@
       return alert('Password minimal 6 karakter.');
     }
 
+    const oldBtnText = registerBtn ? registerBtn.textContent : '';
+    if(registerBtn){
+      registerBtn.disabled = true;
+      registerBtn.textContent = 'Processing...';
+    }
     setAuthStatus('Processing register...');
 
     try {
@@ -644,7 +650,8 @@
       if(error){
         console.error('Register error:', error);
         setAuthStatus('Register failed.');
-        return alert(error.message);
+        alert(error.message);
+        return;
       }
 
       // Jangan langsung insert/read table subscription atau single-login saat register.
@@ -659,16 +666,30 @@
         console.warn('Post-register local signout warning:', e);
       }
 
+      const passInput = getAuthEl('authPassword');
+      if(passInput) passInput.value = '';
+
       updateAuthUI();
-      setAuthStatus('Register success. Please verify email and login.');
+      setAuthStatus('Register berhasil. Cek email untuk verifikasi lalu login.');
 
-      alert('Register berhasil.
-
-Silakan cek email untuk verifikasi akun, lalu login kembali.');
+      showModal({
+        id:'registerSuccessModal',
+        title:'Register Berhasil',
+        bodyHtml:`<p style="margin:0 0 10px;color:#cbd5e1;line-height:1.55">Akun sudah berhasil dibuat.</p>
+          <p style="margin:0;color:#cbd5e1;line-height:1.55">Silakan cek email <b style="color:#fff">${email}</b> untuk verifikasi akun. Setelah verifikasi, login kembali di editor.</p>`,
+        okText:'OK, Saya Mengerti',
+        cancelText:'Close',
+        onOk:()=>removeModal('registerSuccessModal')
+      });
     } catch(err){
       console.error(err);
       setAuthStatus('Register error.');
       alert('Register error: ' + (err.message || err));
+    } finally {
+      if(registerBtn){
+        registerBtn.disabled = false;
+        registerBtn.textContent = oldBtnText || 'Register';
+      }
     }
   }
 
