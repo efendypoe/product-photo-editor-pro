@@ -266,10 +266,55 @@
       font-size:14px;
       text-align:center;
     }
+
+    .testimonials{
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      gap:18px;
+    }
+    .testimonial{
+      background:rgba(31,41,55,.78);
+      border:1px solid var(--line);
+      border-radius:22px;
+      padding:24px;
+      box-shadow:0 18px 40px rgba(0,0,0,.18);
+    }
+    .stars{
+      color:#f59e0b;
+      font-size:18px;
+      letter-spacing:2px;
+      margin-bottom:12px;
+    }
+    .quote{
+      color:#e5e7eb;
+      line-height:1.7;
+      font-size:15px;
+      margin:0 0 18px;
+    }
+    .person{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      color:#cbd5e1;
+      font-size:13px;
+      font-weight:800;
+    }
+    .avatar{
+      width:36px;
+      height:36px;
+      border-radius:50%;
+      background:linear-gradient(135deg,#f59e0b,#22c55e);
+      color:#111827;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-weight:900;
+    }
+
     @media(max-width:900px){
       .hero{grid-template-columns:1fr;padding-top:44px}
       .before-after{grid-template-columns:1fr}
-      .grid,.pricing{grid-template-columns:1fr}
+      .grid,.pricing,.testimonials{grid-template-columns:1fr}
       .hero h1{font-size:42px}
       .navlinks a:not(.btn){display:none}
       .mini-stats{grid-template-columns:1fr}
@@ -284,6 +329,7 @@
         <a href="#beforeafter">Before After</a>
         <a href="#features">Fitur</a>
         <a href="#pricing">Harga</a>
+        <a href="#testimoni">Testimoni</a>
         <a class="btn" href="app.html">Start Editing</a>
       </div>
     </nav>
@@ -393,6 +439,92 @@
         </div>
       </div>
     </section>
+
+
+    
+<section class="section" id="testimoni">
+  <h2>What Marketplace Sellers Say</h2>
+  <p class="lead">
+    Trusted by marketplace sellers to prepare product images faster and cleaner.
+  </p>
+
+  <div class="testimonials">
+
+    <div class="testimonial">
+      <div class="stars">★★★★★</div>
+      <p class="quote">“Batch edit sangat membantu untuk upload produk Shopee. Sekarang edit banyak gambar jadi jauh lebih cepat.”</p>
+      <div class="person"><div class="avatar">S</div><span>Sh****</span></div>
+    </div>
+
+    <div class="testimonial">
+      <div class="stars">★★★★★</div>
+      <p class="quote">“Fitur watermark dan template produk bikin hasil listing lebih rapi dan konsisten.”</p>
+      <div class="person"><div class="avatar">R</div><span>Ri****</span></div>
+    </div>
+
+    <div class="testimonial">
+      <div class="stars">★★★★★</div>
+      <p class="quote">“Background cleanup cukup bagus untuk produk sparepart. Tinggal upload lalu edit cepat.”</p>
+      <div class="person"><div class="avatar">A</div><span>An****</span></div>
+    </div>
+
+    <div class="testimonial">
+      <div class="stars">★★★★★</div>
+      <p class="quote">“Sebagai jasa edit foto produk, software ini sangat hemat waktu. Hasil edit terlihat lebih professional dibanding edit manual satu-satu.”</p>
+      <div class="person"><div class="avatar">F</div><span>Fe****</span></div>
+    </div>
+
+    <div class="testimonial">
+      <div class="stars">★★★★★</div>
+      <p class="quote">“Paling membantu itu export ZIP dan auto rename file. Nama file hasil export jadi lebih rapi dan cepat dipakai upload marketplace.”</p>
+      <div class="person"><div class="avatar">D</div><span>De****</span></div>
+    </div>
+
+    <div class="testimonial">
+      <div class="stars">★★★★★</div>
+      <p class="quote">“UI editor gampang dipahami. Tidak perlu Photoshop lagi untuk edit foto marketplace harian.”</p>
+      <div class="person"><div class="avatar">Y</div><span>Yu****</span></div>
+    </div>
+
+    <div class="testimonial">
+      <div class="stars">★★★★★</div>
+      <p class="quote">“Fitur save template sangat membantu untuk toko dengan banyak produk. Tinggal load template lalu export.”</p>
+      <div class="person"><div class="avatar">A</div><span>Ar****</span></div>
+    </div>
+
+    <div class="testimonial">
+      <div class="stars">★★★★★</div>
+      <p class="quote">“Sekarang bikin foto produk marketplace jauh lebih cepat dibanding edit manual.”</p>
+      <div class="person"><div class="avatar">V</div><span>Vi****</span></div>
+    </div>
+
+    <div class="testimonial">
+      <div class="stars">★★★★★</div>
+      <p class="quote">“Hasil foto lebih clean dan terang. Cocok untuk seller yang ingin tampilan listing lebih professional.”</p>
+      <div class="person"><div class="avatar">L</div><span>Lu****</span></div>
+    </div>
+
+    <div class="testimonial">
+      <div class="stars">★★★★★</div>
+      <p class="quote">“Auto 1:1 canvas sangat membantu untuk upload Shopee dan Tokopedia.”</p>
+      <div class="person"><div class="avatar">H</div><span>Ha****</span></div>
+    </div>
+
+    <div class="testimonial">
+      <div class="stars">★★★★★</div>
+      <p class="quote">“Export banyak gambar sekaligus bikin kerja admin upload lebih ringan.”</p>
+      <div class="person"><div class="avatar">N</div><span>Ni****</span></div>
+    </div>
+
+    <div class="testimonial">
+      <div class="stars">★★★★★</div>
+      <p class="quote">“Software ini cocok untuk reseller dan jasa edit foto produk karena workflow lebih cepat dan hasil tetap rapi.”</p>
+      <div class="person"><div class="avatar">D</div><span>Da****</span></div>
+    </div>
+
+  </div>
+</section>
+
 
     <div class="cta">
       <h2>Ready to make product photos faster?</h2>
