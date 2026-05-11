@@ -17,7 +17,7 @@
     #baseImage{display:none;position:absolute;left:0;top:0;max-width:none;max-height:none;pointer-events:none;user-select:none;-webkit-user-drag:none;transform-origin:center center}#emptyState{padding:60px 28px;color:var(--muted);text-align:center}
     .overlay{position:absolute;left:0;top:0;transform-origin:center center;user-select:none}.overlay.selected .bbox{display:block}.overlay-text{display:block;width:100%;height:100%;pointer-events:none}.overlay img{display:block;pointer-events:none}
     .bbox{display:none;position:absolute;inset:-8px;border:1.5px dashed #f59e0b;pointer-events:none}.handle{position:absolute;width:10px;height:10px;border-radius:50%;background:#f59e0b;border:2px solid #111827;pointer-events:auto}.tl{left:-6px;top:-6px;cursor:nwse-resize}.tr{right:-6px;top:-6px;cursor:nesw-resize}.bl{left:-6px;bottom:-6px;cursor:nesw-resize}.br{right:-6px;bottom:-6px;cursor:nwse-resize}.ml{left:-6px;top:50%;transform:translateY(-50%);cursor:ew-resize}.mr{right:-6px;top:50%;transform:translateY(-50%);cursor:ew-resize}.mt{top:-6px;left:50%;transform:translateX(-50%);cursor:ns-resize}.mb{bottom:-6px;left:50%;transform:translateX(-50%);cursor:ns-resize}.rotate-line{position:absolute;left:50%;top:-24px;width:2px;height:14px;background:#f59e0b;transform:translateX(-50%);pointer-events:none}.rotate{left:50%;top:-34px;transform:translateX(-50%);cursor:grab}
-    .thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}.thumb{background:#0b1220;border:1px solid var(--line);border-radius:12px;padding:8px;cursor:pointer}.thumb.active{border-color:#f59e0b;box-shadow:0 0 0 1px #f59e0b inset}.thumb img{width:100%;height:110px;object-fit:contain;background:#fff;border-radius:8px;display:block}.name{font-size:11px;color:#cbd5e1;margin-top:6px;word-break:break-word}.hidden{display:none!important}
+    .thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}.thumb{background:#0b1220;border:1px solid var(--line);border-radius:12px;padding:8px;cursor:pointer}.thumb.active{border-color:#f59e0b;box-shadow:0 0 0 1px #f59e0b inset}.thumb img{width:100%;height:110px;object-fit:contain;background:#fff;border-radius:8px;display:block}.name{font-size:11px;color:#cbd5e1;margin-top:6px;word-break:break-word}.hidden{display:none!important}.lang-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px}.lang-row select{width:auto;min-width:96px;padding:8px 10px;border-radius:999px}
   </style>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -29,6 +29,7 @@
     <h1>Product Photo Editor Pro</h1>
 <div class="sub">Fast Image Tool for Marketplace Sellers</div>
 <div class="mini">v1.0 Stable</div>
+<div class="lang-row"><span class="mini" id="langLabelEditor">Language</span><select id="langSelectEditor"><option value="id">Indonesia</option><option value="en">English</option></select></div>
 
     <div class="card" id="authCard">
       <h2>Account</h2>
@@ -1157,6 +1158,74 @@
   });
   updateExportLimitText();
   function escapeHtml(str){return String(str).replace(/[&<>\"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#039;'}[m]))}
+
+  // === LANGUAGE SELECTOR ID / EN ===
+  function initEditorLanguage(){
+    const select = document.getElementById('langSelectEditor');
+    if(!select) return;
+
+    const map = {
+      id: {
+        langLabelEditor:'Bahasa',
+        loginBtn:'Login',
+        registerBtn:'Register',
+        forgotPasswordBtn:'Lupa / Reset Password',
+        upgradeAccountBtn:'Upgrade Pro',
+        logoutBtn:'Logout',
+        openChangePasswordBtn:'Ganti Password',
+        presetAuto:'Auto Enhance',
+        presetShopee:'Bright Shopee',
+        presetDetail:'Sharp Detail',
+        presetNatural:'Soft Natural',
+        addTextBtn:'+ Text',
+        addLogoBtn:'+ Logo',
+        addPresetPack:'Add Preset Pack',
+        lockElement:'Lock Element',
+        downloadCurrentBtn:'Download Image',
+        downloadAllBtn:'Download All',
+        downloadZipBtn:'Download ZIP',
+        centerImage:'Center Image',
+        resetImageTransform:'Reset Image'
+      },
+      en: {
+        langLabelEditor:'Language',
+        loginBtn:'Login',
+        registerBtn:'Register',
+        forgotPasswordBtn:'Forgot / Reset Password',
+        upgradeAccountBtn:'Upgrade Pro',
+        logoutBtn:'Logout',
+        openChangePasswordBtn:'Change Password',
+        presetAuto:'Auto Enhance',
+        presetShopee:'Bright Shopee',
+        presetDetail:'Sharp Detail',
+        presetNatural:'Soft Natural',
+        addTextBtn:'+ Text',
+        addLogoBtn:'+ Logo',
+        addPresetPack:'Add Preset Pack',
+        lockElement:'Lock Element',
+        downloadCurrentBtn:'Download Image',
+        downloadAllBtn:'Download All',
+        downloadZipBtn:'Download ZIP',
+        centerImage:'Center Image',
+        resetImageTransform:'Reset Image'
+      }
+    };
+
+    function apply(lang){
+      localStorage.setItem('epp_lang', lang);
+      const dict = map[lang] || map.id;
+      Object.keys(dict).forEach(id=>{
+        const node = document.getElementById(id);
+        if(node) node.textContent = dict[id];
+      });
+    }
+
+    select.value = localStorage.getItem('epp_lang') || 'id';
+    select.addEventListener('change', ()=>apply(select.value));
+    apply(select.value);
+  }
+  setTimeout(initEditorLanguage, 0);
+
 })();
 </script>
 </body>
