@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -873,6 +874,7 @@
         },
         body: JSON.stringify({
           plan: plan || 'monthly',
+          user_id: authUser.id,
           customer_name: authUser.email,
           customer_email: authUser.email
         })
