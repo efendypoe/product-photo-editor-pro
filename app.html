@@ -19,12 +19,220 @@
     .overlay{position:absolute;left:0;top:0;transform-origin:center center;user-select:none}.overlay.selected .bbox{display:block}.overlay-text{display:block;width:100%;height:100%;pointer-events:none}.overlay img{display:block;pointer-events:none}
     .bbox{display:none;position:absolute;inset:-8px;border:1.5px dashed #f59e0b;pointer-events:none}.handle{position:absolute;width:10px;height:10px;border-radius:50%;background:#f59e0b;border:2px solid #111827;pointer-events:auto}.tl{left:-6px;top:-6px;cursor:nwse-resize}.tr{right:-6px;top:-6px;cursor:nesw-resize}.bl{left:-6px;bottom:-6px;cursor:nesw-resize}.br{right:-6px;bottom:-6px;cursor:nwse-resize}.ml{left:-6px;top:50%;transform:translateY(-50%);cursor:ew-resize}.mr{right:-6px;top:50%;transform:translateY(-50%);cursor:ew-resize}.mt{top:-6px;left:50%;transform:translateX(-50%);cursor:ns-resize}.mb{bottom:-6px;left:50%;transform:translateX(-50%);cursor:ns-resize}.rotate-line{position:absolute;left:50%;top:-24px;width:2px;height:14px;background:#f59e0b;transform:translateX(-50%);pointer-events:none}.rotate{left:50%;top:-34px;transform:translateX(-50%);cursor:grab}
     .thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}.thumb{background:#0b1220;border:1px solid var(--line);border-radius:12px;padding:8px;cursor:pointer}.thumb.active{border-color:#f59e0b;box-shadow:0 0 0 1px #f59e0b inset}.thumb img{width:100%;height:110px;object-fit:contain;background:#fff;border-radius:8px;display:block}.name{font-size:11px;color:#cbd5e1;margin-top:6px;word-break:break-word}.hidden{display:none!important}.lang-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px}.lang-row select{width:auto;min-width:96px;padding:8px 10px;border-radius:999px}
+
+    /* ========== MOBILE RESPONSIVE ========== */
+    @media (max-width: 768px) {
+      /* Hide desktop layout */
+      .app { display:block !important; }
+      .panel.left, .panel.right { display:none !important; }
+      .center { padding:0 !important; gap:0 !important; }
+
+      /* Mobile header */
+      #mobileHeader {
+        display:flex !important;
+      }
+
+      /* Canvas area */
+      .workspace {
+        min-height:calc(100vw - 0px) !important;
+        border-radius:0 !important;
+        border:none !important;
+        padding:10px !important;
+      }
+      .stage { border-radius:10px !important; }
+
+      /* Image list horizontal scroll */
+      .thumbs {
+        display:flex !important;
+        overflow-x:auto !important;
+        gap:8px !important;
+        padding:8px !important;
+        flex-wrap:nowrap !important;
+      }
+      .thumb { min-width:80px !important; flex-shrink:0 !important; }
+      .thumb img { height:70px !important; }
+
+      /* Bottom sheet */
+      #mobileBottomSheet {
+        display:block !important;
+      }
+
+      /* Bottom tab bar */
+      #mobileTabBar {
+        display:flex !important;
+      }
+
+      /* Hide desktop preview card h2 and sub on mobile */
+      .center .card:first-child h2,
+      .center .card:first-child .sub {
+        display:none !important;
+      }
+      .center .card:first-child {
+        border-radius:0 !important;
+        border:none !important;
+        padding:0 !important;
+        margin:0 !important;
+        background:transparent !important;
+      }
+      .center .card:nth-child(2) {
+        margin:0 !important;
+        border-radius:0 !important;
+        border-top:1px solid var(--line) !important;
+        border-left:none !important;
+        border-right:none !important;
+        border-bottom:none !important;
+        padding:0 0 4px !important;
+        background:rgba(17,24,39,.97) !important;
+      }
+      .center .card:nth-child(2) h2 { padding:8px 12px 0; margin:0 !important; font-size:13px; }
+
+      body { padding-bottom: 130px; }
+    }
+
+    /* Mobile-only elements — hidden on desktop */
+    #mobileHeader, #mobileBottomSheet, #mobileTabBar { display:none; }
+
+    /* Mobile header */
+    #mobileHeader {
+      position:sticky;
+      top:0;
+      z-index:100;
+      background:rgba(17,24,39,.98);
+      border-bottom:1px solid var(--line);
+      padding:10px 14px;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
+    #mobileHeader h1 { font-size:15px; margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    #mobileHeaderRight { display:flex; align-items:center; gap:8px; flex-shrink:0; }
+    #mobileDownloadBtn {
+      background:var(--accent);
+      color:#111827;
+      border:0;
+      border-radius:10px;
+      padding:8px 14px;
+      font-weight:900;
+      font-size:13px;
+      cursor:pointer;
+      white-space:nowrap;
+    }
+    #mobileUndoBtn, #mobileRedoBtn {
+      background:transparent;
+      color:var(--text);
+      border:1px solid var(--line);
+      border-radius:8px;
+      padding:7px 10px;
+      font-size:13px;
+      cursor:pointer;
+    }
+
+    /* Bottom sheet */
+    #mobileBottomSheet {
+      position:fixed;
+      left:0; right:0; bottom:64px;
+      z-index:200;
+      background:rgba(17,24,39,.98);
+      border-top:1px solid var(--line);
+      border-radius:20px 20px 0 0;
+      max-height:60vh;
+      overflow-y:auto;
+      transform:translateY(100%);
+      transition:transform .3s cubic-bezier(.4,0,.2,1);
+      padding:0 0 12px;
+    }
+    #mobileBottomSheet.open { transform:translateY(0); }
+    #sheetHandle {
+      width:36px; height:4px;
+      background:#475569;
+      border-radius:999px;
+      margin:10px auto 6px;
+    }
+    #sheetTitle {
+      font-size:14px;
+      font-weight:700;
+      padding:4px 16px 10px;
+      color:var(--text);
+      border-bottom:1px solid var(--line);
+      margin-bottom:8px;
+    }
+    .sheet-content { padding:0 12px; }
+    .sheet-content .card { margin-bottom:10px; }
+
+    /* Bottom tab bar */
+    #mobileTabBar {
+      position:fixed;
+      bottom:0; left:0; right:0;
+      z-index:300;
+      background:rgba(17,24,39,.98);
+      border-top:1px solid var(--line);
+      height:64px;
+      align-items:center;
+      justify-content:space-around;
+      padding:0 4px;
+    }
+    .mob-tab {
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      gap:3px;
+      padding:6px 10px;
+      border-radius:12px;
+      cursor:pointer;
+      border:0;
+      background:transparent;
+      color:var(--muted);
+      font-size:10px;
+      font-weight:700;
+      min-width:52px;
+      transition:color .15s, background .15s;
+    }
+    .mob-tab .tab-icon { font-size:20px; line-height:1; }
+    .mob-tab.active { color:var(--accent); background:rgba(245,158,11,.1); }
+
   </style>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <!-- Midtrans uses redirect_url from backend, no client key needed in frontend -->
 </head>
 <body>
+
+<!-- MOBILE HEADER -->
+<div id="mobileHeader">
+  <h1>📷 Product Photo Editor Pro</h1>
+  <div id="mobileHeaderRight">
+    <button id="mobileUndoBtn" type="button">↩</button>
+    <button id="mobileRedoBtn" type="button">↪</button>
+    <button id="mobileDownloadBtn" type="button">⬇ Download</button>
+  </div>
+</div>
+
+<!-- MOBILE BOTTOM SHEET -->
+<div id="mobileBottomSheet">
+  <div id="sheetHandle"></div>
+  <div id="sheetTitle">Panel</div>
+  <div class="sheet-content" id="sheetContent"></div>
+</div>
+
+<!-- MOBILE BOTTOM TAB BAR -->
+<div id="mobileTabBar">
+  <button class="mob-tab active" data-tab="image" onclick="mobileTab(this,'image')">
+    <span class="tab-icon">📷</span>Image
+  </button>
+  <button class="mob-tab" data-tab="edit" onclick="mobileTab(this,'edit')">
+    <span class="tab-icon">✏️</span>Edit
+  </button>
+  <button class="mob-tab" data-tab="elements" onclick="mobileTab(this,'elements')">
+    <span class="tab-icon">🎨</span>Elements
+  </button>
+  <button class="mob-tab" data-tab="export" onclick="mobileTab(this,'export')">
+    <span class="tab-icon">⬇️</span>Export
+  </button>
+  <button class="mob-tab" data-tab="template" onclick="mobileTab(this,'template')">
+    <span class="tab-icon">📋</span>Template
+  </button>
+</div>
+
 <div class="app">
   <aside class="panel left">
     <h1>Product Photo Editor Pro</h1>
@@ -1315,6 +1523,175 @@
     apply(select.value);
   }
   setTimeout(initEditorLanguage, 0);
+
+
+
+  // ===== MOBILE UI =====
+  const isMobile = () => window.innerWidth <= 768;
+
+  // Tab content map — which desktop card IDs to show in each tab
+  const tabMap = {
+    image: {
+      title: '📷 Image',
+      ids: ['authCard', 'imagesCard']
+    },
+    edit: {
+      title: '✏️ Photo Edit',
+      ids: ['photoEditCard']
+    },
+    elements: {
+      title: '🎨 Elements',
+      ids: ['elementsCard', 'elementPropsCard']
+    },
+    export: {
+      title: '⬇️ Export',
+      ids: ['exportNameCard', 'historyExportCard']
+    },
+    template: {
+      title: '📋 Template',
+      ids: ['templateCard']
+    }
+  };
+
+  function mobileTab(btn, tabName){
+    if(!isMobile()) return;
+    // Update active tab
+    document.querySelectorAll('.mob-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+
+    const sheet = document.getElementById('mobileBottomSheet');
+    const sheetTitle = document.getElementById('sheetTitle');
+    const sheetContent = document.getElementById('sheetContent');
+    const tab = tabMap[tabName];
+    if(!tab) return;
+
+    // If same tab clicked and sheet open, close it
+    if(sheet.classList.contains('open') && sheet.dataset.currentTab === tabName){
+      sheet.classList.remove('open');
+      sheet.dataset.currentTab = '';
+      return;
+    }
+
+    sheetTitle.textContent = tab.title;
+    sheetContent.innerHTML = '';
+
+    tab.ids.forEach(id => {
+      const el = document.getElementById(id);
+      if(el){
+        const clone = el.cloneNode(true);
+        // Re-wire inputs/buttons in clone to original
+        sheetContent.appendChild(clone);
+      }
+    });
+
+    // Re-wire all interactive elements in sheet to originals
+    rewireSheet();
+
+    sheet.dataset.currentTab = tabName;
+    sheet.classList.add('open');
+  }
+
+  function rewireSheet(){
+    const sheet = document.getElementById('sheetContent');
+    if(!sheet) return;
+
+    // All inputs, selects, textareas — sync to original
+    sheet.querySelectorAll('input,select,textarea').forEach(clone => {
+      const orig = document.getElementById(clone.id);
+      if(!orig || clone === orig) return;
+
+      // Sync value from original
+      if(clone.type === 'checkbox') clone.checked = orig.checked;
+      else clone.value = orig.value;
+
+      // Forward events to original
+      ['input','change','keydown','blur'].forEach(ev => {
+        clone.addEventListener(ev, e => {
+          if(clone.type === 'checkbox') orig.checked = clone.checked;
+          else orig.value = clone.value;
+          orig.dispatchEvent(new Event(ev, {bubbles:true}));
+        });
+      });
+    });
+
+    // All buttons — forward click to original
+    sheet.querySelectorAll('button').forEach(clone => {
+      if(!clone.id) return;
+      const orig = document.getElementById(clone.id);
+      if(!orig || clone === orig) return;
+      clone.addEventListener('click', () => orig.click());
+    });
+  }
+
+  // Add card IDs to desktop panels for tab mapping
+  function assignCardIds(){
+    const left = document.querySelector('.panel.left');
+    if(!left) return;
+    const cards = left.querySelectorAll('.card');
+    const mapping = [
+      {el: document.getElementById('authCard'), id: 'authCard'},
+    ];
+
+    // Assign IDs to unnamed cards by order
+    let cardNames = ['authCard','imagesCard','photoEditCard','elementsCard','templateCard','exportNameCard','historyExportCard'];
+    cards.forEach((card, i) => {
+      if(!card.id && cardNames[i]) card.id = cardNames[i];
+    });
+
+    // Element properties is in right panel
+    const rightCard = document.querySelector('.panel.right .card');
+    if(rightCard && !rightCard.id) rightCard.id = 'elementPropsCard';
+  }
+
+  // Mobile download button
+  document.addEventListener('DOMContentLoaded', () => {
+    assignCardIds();
+
+    const mobDl = document.getElementById('mobileDownloadBtn');
+    if(mobDl) mobDl.addEventListener('click', () => {
+      const orig = document.getElementById('downloadCurrentBtn');
+      if(orig) orig.click();
+    });
+
+    const mobUndo = document.getElementById('mobileUndoBtn');
+    if(mobUndo) mobUndo.addEventListener('click', () => {
+      const orig = document.getElementById('undoBtn');
+      if(orig) orig.click();
+    });
+
+    const mobRedo = document.getElementById('mobileRedoBtn');
+    if(mobRedo) mobRedo.addEventListener('click', () => {
+      const orig = document.getElementById('redoBtn');
+      if(orig) orig.click();
+    });
+  });
+
+  // Close sheet when tapping canvas
+  document.addEventListener('click', e => {
+    if(!isMobile()) return;
+    const sheet = document.getElementById('mobileBottomSheet');
+    if(!sheet) return;
+    const stage = document.querySelector('.workspace');
+    if(stage && stage.contains(e.target)){
+      sheet.classList.remove('open');
+      document.querySelectorAll('.mob-tab').forEach(b => b.classList.remove('active'));
+    }
+  });
+
+  // Swipe down to close sheet
+  (function(){
+    let startY = 0;
+    const sheet = document.getElementById('mobileBottomSheet');
+    if(!sheet) return;
+    sheet.addEventListener('touchstart', e => { startY = e.touches[0].clientY; }, {passive:true});
+    sheet.addEventListener('touchend', e => {
+      const dy = e.changedTouches[0].clientY - startY;
+      if(dy > 60) {
+        sheet.classList.remove('open');
+        document.querySelectorAll('.mob-tab').forEach(b => b.classList.remove('active'));
+      }
+    }, {passive:true});
+  })();
 
 })();
 </script>
