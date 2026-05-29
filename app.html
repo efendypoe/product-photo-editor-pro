@@ -383,6 +383,10 @@
       <div class="row" style="grid-template-columns:1fr 86px;align-items:center"><input id="bgEdge" type="range" min="0" max="100" value="60"><input id="bgEdgeInput" type="number" min="0" max="100" value="60"></div>
       <div class="mini" id="bgEdgeVal">60%</div>
       <div style="margin-top:10px"><button id="bgReset" type="button" class="ghost" style="width:100%">Reset Background Cleanup</button></div>
+      <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line)">
+        <button id="aiRemoveBgBtn" type="button" style="width:100%;background:linear-gradient(135deg,#f59e0b,#ef4444);color:#fff;border:0;border-radius:10px;padding:11px;font-weight:900;font-size:14px;cursor:pointer">✨ AI Remove Background</button>
+        <div class="mini" id="aiRemoveBgStatus" style="margin-top:6px;text-align:center"></div>
+      </div>
       <div style="height:1px;background:var(--line);margin:14px 0"></div><h2>Image Transform</h2>
       <label>Canvas Mode</label><select id="canvasMode"><option value="square" selected>1:1 Square</option><option value="original">Original Ratio</option></select>
       <label style="margin-top:10px">Image Zoom</label><div class="row" style="grid-template-columns:1fr 86px;align-items:center"><input id="imageZoom" type="range" min="30" max="250" value="100"><input id="imageZoomInput" type="number" min="30" max="250" value="100"></div><div class="mini" id="imageZoomVal">100%</div>
@@ -2480,7 +2484,10 @@
           </label>
           <label style="font-size:12px;color:#cbd5e1">Strength</label>
           <input type="range" id="mob_bgStrength" min="0" max="100" value="0" style="width:100%;margin-bottom:10px">
-          <button type="button" id="mob_bgReset" style="width:100%;background:transparent;color:#e5e7eb;border:1px solid #334155;border-radius:10px;padding:10px;font-weight:700;cursor:pointer">Reset Background</button>
+          <button type="button" id="mob_bgReset" style="width:100%;background:transparent;color:#e5e7eb;border:1px solid #334155;border-radius:10px;padding:10px;font-weight:700;cursor:pointer;margin-bottom:10px">Reset Background</button>
+          <div style="height:1px;background:#334155;margin-bottom:10px"></div>
+          <button type="button" id="mob_aiRemoveBgBtn" style="width:100%;background:linear-gradient(135deg,#f59e0b,#ef4444);color:#fff;border:0;border-radius:12px;padding:14px;font-weight:900;font-size:15px;cursor:pointer">✨ AI Remove Background</button>
+          <div style="font-size:11px;color:#94a3b8;text-align:center;margin-top:6px">Hapus background otomatis dengan AI</div>
           <div style="height:1px;background:#334155;margin:14px 0"></div>
           <h3 style="margin:0 0 8px;font-size:13px;color:#94a3b8">CANVAS</h3>
           <select id="mob_canvasMode" style="width:100%;background:#0b1220;color:#e5e7eb;border:1px solid #334155;border-radius:10px;padding:10px;margin-bottom:8px;outline:none">
@@ -2688,6 +2695,8 @@
       wire('mob_bgAdvancedEnable', 'bgAdvancedEnable', 'checkbox');
       wire('mob_bgStrength', 'bgStrength', 'range');
       wire('mob_bgReset', 'bgReset');
+      const mobAiBtn = document.getElementById('mob_aiRemoveBgBtn');
+      if(mobAiBtn) mobAiBtn.addEventListener('click', aiRemoveBackground);
       wire('mob_canvasMode', 'canvasMode', 'select');
       wire('mob_imageZoom', 'imageZoom', 'range');
       wire('mob_centerImage', 'centerImage');
@@ -2981,6 +2990,72 @@
       canvas.style.opacity = sheet && sheet.classList.contains('open') ? '0.7' : '1';
     }
   };
+
+
+  // ===== AI REMOVE BACKGROUND =====
+  const REMBG_SERVER = 'https://proteins-glance-selecting-font.trycloudflare.com';
+
+  async function aiRemoveBackground(){
+    const img = currentImage();
+    if(!img) return showToast('Upload foto dulu!', 'error');
+
+    const btn = document.getElementById('aiRemoveBgBtn');
+    const statusEl = document.getElementById('aiRemoveBgStatus');
+    const mobBtn = document.getElementById('mob_aiRemoveBgBtn');
+
+    // Update UI
+    const setLoading = (loading) => {
+      if(btn){ btn.disabled = loading; btn.textContent = loading ? '⏳ Processing...' : '✨ AI Remove Background'; }
+      if(mobBtn){ mobBtn.disabled = loading; mobBtn.textContent = loading ? '⏳ Processing...' : '✨ AI Remove Background'; }
+      if(statusEl) statusEl.textContent = loading ? 'Menghapus background dengan AI...' : '';
+    };
+
+    setLoading(true);
+    showToast('AI sedang memproses foto...', 'info', 8000);
+
+    try {
+      // Convert current image src to blob
+      const response = await fetch(img.src);
+      const blob = await response.blob();
+
+      // Send to rembg server
+      const formData = new FormData();
+      formData.append('file', blob, 'image.jpg');
+
+      const res = await fetch(REMBG_SERVER + '/remove-bg', {
+        method: 'POST',
+        body: formData
+      });
+
+      if(!res.ok) throw new Error('Server error: ' + res.status);
+
+      // Get result as blob and convert to data URL
+      const resultBlob = await res.blob();
+      const dataUrl = await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.readAsDataURL(resultBlob);
+      });
+
+      // Save to undo history and update image
+      save();
+      state.images.forEach(photo => {
+        if(photo.name === img.name) photo.src = dataUrl;
+      });
+
+      renderThumbs();
+      renderImage(state.currentIndex);
+      showToast('✅ Background berhasil dihapus!', 'success');
+
+    } catch(err) {
+      console.error('AI Remove BG error:', err);
+      showToast('Gagal: ' + (err.message || 'Server tidak dapat dijangkau'), 'error', 6000);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  document.getElementById('aiRemoveBgBtn')?.addEventListener('click', aiRemoveBackground);
 
   // Expose to global scope (needed for onclick in HTML)
   window.mobileTab = window.mobileTab;
