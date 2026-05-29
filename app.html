@@ -1644,19 +1644,20 @@
     if(o.locked){ e.preventDefault(); return; }
 
     // Double tap on element → open edit modal
-    if(o.type === 'text' || o.type === 'logo'){
-      const now = Date.now();
-      const lastTap = lastTapTimeElement[o.id] || 0;
-      const gap = now - lastTap;
-      lastTapTimeElement[o.id] = now;
-      if(gap < 500){
-        e.preventDefault();
-        if(o.type === 'text') openMobileTextEdit(o);
-        else openMobileLogoEdit(o);
-        return;
-      }
-      showEditHint(o);
+    // Check double tap BEFORE handle detection so it works on any part of element
+    const now2 = Date.now();
+    const lastTap2 = lastTapTimeElement[o.id] || 0;
+    const gap2 = now2 - lastTap2;
+    lastTapTimeElement[o.id] = now2;
+
+    if(gap2 < 500){
+      e.preventDefault();
+      if(o.type === 'text') openMobileTextEdit(o);
+      else if(o.type === 'logo') openMobileLogoEdit(o);
+      return;
     }
+    // Single tap — show hint
+    showEditHint(o);
 
     const handle = e.target.classList?.contains('handle') ? (e.target.dataset.handle || '') : '';
     const rect = el.stageInner.getBoundingClientRect();
