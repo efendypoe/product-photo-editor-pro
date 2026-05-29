@@ -1575,7 +1575,7 @@
       hint.style.cssText = 'position:fixed;top:80px;left:50%;transform:translateX(-50%);background:#f59e0b;color:#111827;border-radius:20px;padding:7px 16px;font-size:13px;font-weight:900;z-index:9999;pointer-events:none;white-space:nowrap;box-shadow:0 4px 12px rgba(0,0,0,.4)';
       document.body.appendChild(hint);
     }
-    hint.textContent = '👆👆 Double tap untuk edit teks';
+    hint.textContent = o.type === 'logo' ? '👆👆 Double tap untuk edit logo' : '👆👆 Double tap untuk edit teks';
     hint.style.opacity = '1';
     clearTimeout(hint._t);
     hint._t = setTimeout(() => { hint.style.opacity = '0'; }, 1800);
@@ -1643,20 +1643,18 @@
     selectItem(o.id, o.type);
     if(o.locked){ e.preventDefault(); return; }
 
-    // Double tap on text element → open edit modal
-    // Use per-element timer so canvas tap doesn't interfere
-    if(o.type === 'text'){
+    // Double tap on element → open edit modal
+    if(o.type === 'text' || o.type === 'logo'){
       const now = Date.now();
       const lastTap = lastTapTimeElement[o.id] || 0;
       const gap = now - lastTap;
       lastTapTimeElement[o.id] = now;
       if(gap < 500){
-        // Valid double tap on same element
         e.preventDefault();
-        openMobileTextEdit(o);
+        if(o.type === 'text') openMobileTextEdit(o);
+        else openMobileLogoEdit(o);
         return;
       }
-      // Single tap — just select, show hint
       showEditHint(o);
     }
 
@@ -1760,6 +1758,175 @@
   }
 
   // Mobile text edit modal — double tap text to open
+  // Mobile Logo Edit Modal — double tap logo
+  function openMobileLogoEdit(o){
+    const old2 = document.getElementById('mobileLogoEditModal');
+    if(old2) old2.remove();
+
+    // Close bottom sheet
+    const bs = document.getElementById('mobileBottomSheet');
+    if(bs) bs.classList.remove('open');
+    document.querySelectorAll('.mob-tab').forEach(b => b.classList.remove('active'));
+    window.currentMobileTab = '';
+
+    // Snapshot for cancel
+    const origProps = { rotate: o.rotate, opacity: o.opacity };
+
+    const div = document.createElement('div');
+    div.id = 'mobileLogoEditModal';
+    div.style.cssText = 'position:fixed;inset:0;background:transparent;z-index:99999;pointer-events:none';
+
+    div.innerHTML = `
+      <div style="position:absolute;bottom:72px;left:8px;right:8px;background:rgba(11,18,32,.97);backdrop-filter:blur(16px);border-radius:18px;border:1px solid #f59e0b;padding:12px 14px 16px;pointer-events:auto;box-shadow:0 8px 32px rgba(0,0,0,.6)">
+
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <span style="font-size:13px;font-weight:900;color:#f59e0b">🖼 Edit Logo</span>
+          <div style="display:flex;gap:8px">
+            <button id="mobLogoSave" style="background:#f59e0b;color:#111827;border:0;border-radius:8px;padding:6px 14px;font-weight:900;font-size:13px;cursor:pointer">✅ Simpan</button>
+            <button id="mobLogoClose" style="background:transparent;border:1px solid #334155;color:#e5e7eb;border-radius:8px;padding:6px 10px;font-size:12px;cursor:pointer">✕ Batal</button>
+          </div>
+        </div>
+
+        <!-- ROTATE — drag slider model -->
+        <div style="margin-bottom:14px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <label style="font-size:11px;color:#94a3b8;font-weight:700">ROTATE</label>
+            <span id="mobLogoRotateVal" style="font-size:12px;font-weight:900;color:#f59e0b">${Math.round(o.rotate||0)}°</span>
+          </div>
+          <input id="mobLogoRotate" type="range" min="-180" max="180" value="${Math.round(o.rotate||0)}"
+            style="width:100%;accent-color:#f59e0b;cursor:pointer">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:8px">
+            <button id="mobLogoRot0" style="background:#0b1220;color:#e5e7eb;border:1px solid #1e293b;border-radius:8px;padding:7px;font-size:12px;cursor:pointer">0°</button>
+            <button id="mobLogoRot90" style="background:#0b1220;color:#e5e7eb;border:1px solid #1e293b;border-radius:8px;padding:7px;font-size:12px;cursor:pointer">90°</button>
+            <button id="mobLogoRot180" style="background:#0b1220;color:#e5e7eb;border:1px solid #1e293b;border-radius:8px;padding:7px;font-size:12px;cursor:pointer">180°</button>
+          </div>
+        </div>
+
+        <!-- OPACITY -->
+        <div style="margin-bottom:14px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <label style="font-size:11px;color:#94a3b8;font-weight:700">OPACITY</label>
+            <span id="mobLogoOpacityVal" style="font-size:12px;font-weight:900;color:#f59e0b">${o.opacity||60}%</span>
+          </div>
+          <input id="mobLogoOpacity" type="range" min="5" max="100" value="${o.opacity||60}"
+            style="width:100%;accent-color:#f59e0b;cursor:pointer">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;margin-top:8px">
+            <button id="mobLogoOp25" style="background:#0b1220;color:#e5e7eb;border:1px solid #1e293b;border-radius:8px;padding:7px;font-size:12px;cursor:pointer">25%</button>
+            <button id="mobLogoOp50" style="background:#0b1220;color:#e5e7eb;border:1px solid #1e293b;border-radius:8px;padding:7px;font-size:12px;cursor:pointer">50%</button>
+            <button id="mobLogoOp75" style="background:#0b1220;color:#e5e7eb;border:1px solid #1e293b;border-radius:8px;padding:7px;font-size:12px;cursor:pointer">75%</button>
+            <button id="mobLogoOp100" style="background:#0b1220;color:#e5e7eb;border:1px solid #1e293b;border-radius:8px;padding:7px;font-size:12px;cursor:pointer">100%</button>
+          </div>
+        </div>
+
+        <!-- QUICK POSITION -->
+        <div style="margin-bottom:10px">
+          <label style="font-size:11px;color:#94a3b8;font-weight:700;display:block;margin-bottom:6px">QUICK POSITION</label>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:6px">
+            <button id="mobLogoPosLeft"    style="background:#0b1220;color:#e5e7eb;border:1px solid #1e293b;border-radius:8px;padding:8px;font-size:12px;cursor:pointer">◀ Left</button>
+            <button id="mobLogoPosCenter"  style="background:#f59e0b;color:#111827;border:0;border-radius:8px;padding:8px;font-size:12px;font-weight:700;cursor:pointer">Center</button>
+            <button id="mobLogoPosRight"   style="background:#0b1220;color:#e5e7eb;border:1px solid #1e293b;border-radius:8px;padding:8px;font-size:12px;cursor:pointer">Right ▶</button>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
+            <button id="mobLogoPosTop"     style="background:#0b1220;color:#e5e7eb;border:1px solid #1e293b;border-radius:8px;padding:8px;font-size:12px;cursor:pointer">▲ Top</button>
+            <button id="mobLogoPosVCenter" style="background:#f59e0b;color:#111827;border:0;border-radius:8px;padding:8px;font-size:12px;font-weight:700;cursor:pointer">Center</button>
+            <button id="mobLogoPosUnder"   style="background:#0b1220;color:#e5e7eb;border:1px solid #1e293b;border-radius:8px;padding:8px;font-size:12px;cursor:pointer">▼ Under</button>
+          </div>
+        </div>
+
+        <button id="mobLogoDelete" style="width:100%;background:transparent;color:#ef4444;border:1px solid #ef4444;border-radius:8px;padding:9px;font-weight:700;font-size:12px;cursor:pointer">🗑 Hapus Logo</button>
+      </div>`;
+
+    document.body.appendChild(div);
+
+    const g = id => document.getElementById(id);
+
+    // Live preview function
+    function applyLogoPreview(){
+      const rot = parseFloat(g('mobLogoRotate')?.value) || 0;
+      const opa = parseInt(g('mobLogoOpacity')?.value) || 60;
+      state.images.forEach(img => {
+        const it = img.items.find(x => x.group === o.group && x.type === 'logo');
+        if(it){ it.rotate = rot; it.opacity = opa; }
+      });
+      renderImage(state.currentIndex);
+    }
+
+    // Rotate slider
+    g('mobLogoRotate').addEventListener('input', () => {
+      g('mobLogoRotateVal').textContent = Math.round(parseFloat(g('mobLogoRotate').value)) + '°';
+      applyLogoPreview();
+    });
+
+    // Opacity slider
+    g('mobLogoOpacity').addEventListener('input', () => {
+      g('mobLogoOpacityVal').textContent = g('mobLogoOpacity').value + '%';
+      applyLogoPreview();
+    });
+
+    // Rotate presets
+    const setRot = val => {
+      g('mobLogoRotate').value = val;
+      g('mobLogoRotateVal').textContent = val + '°';
+      applyLogoPreview();
+    };
+    g('mobLogoRot0').addEventListener('click', () => setRot(0));
+    g('mobLogoRot90').addEventListener('click', () => setRot(90));
+    g('mobLogoRot180').addEventListener('click', () => setRot(180));
+
+    // Opacity presets
+    const setOpa = val => {
+      g('mobLogoOpacity').value = val;
+      g('mobLogoOpacityVal').textContent = val + '%';
+      applyLogoPreview();
+    };
+    g('mobLogoOp25').addEventListener('click', () => setOpa(25));
+    g('mobLogoOp50').addEventListener('click', () => setOpa(50));
+    g('mobLogoOp75').addEventListener('click', () => setOpa(75));
+    g('mobLogoOp100').addEventListener('click', () => setOpa(100));
+
+    // Quick position — wire to desktop buttons
+    const posWire = (mobId, origId) => {
+      const m = g(mobId), o2 = document.getElementById(origId);
+      if(m && o2) m.addEventListener('click', () => { o2.click(); renderImage(state.currentIndex); });
+    };
+    posWire('mobLogoPosLeft', 'posLeft');
+    posWire('mobLogoPosCenter', 'posHCenter');
+    posWire('mobLogoPosRight', 'posRight');
+    posWire('mobLogoPosTop', 'posTop');
+    posWire('mobLogoPosVCenter', 'posVCenter');
+    posWire('mobLogoPosUnder', 'posUnder');
+
+    // Delete
+    g('mobLogoDelete').addEventListener('click', () => {
+      save();
+      state.images.forEach(img => { img.items = img.items.filter(it => it.group !== o.group); });
+      state.selectedId = null; state.selectedType = null;
+      renderImage(state.currentIndex);
+      div.remove();
+    });
+
+    // Save
+    g('mobLogoSave').addEventListener('click', () => {
+      applyLogoPreview();
+      save();
+      div.remove();
+      setTimeout(() => renderImage(state.currentIndex), 100);
+    });
+
+    // Cancel — restore
+    const closeLogoModal = () => {
+      state.images.forEach(img => {
+        const it = img.items.find(x => x.group === o.group && x.type === 'logo');
+        if(it){ it.rotate = origProps.rotate; it.opacity = origProps.opacity; }
+      });
+      renderImage(state.currentIndex);
+      div.remove();
+      setTimeout(() => renderImage(state.currentIndex), 100);
+    };
+    g('mobLogoClose').addEventListener('click', closeLogoModal);
+    div.addEventListener('click', e2 => { if(e2.target === div) closeLogoModal(); });
+  }
+
   function openMobileTextEdit(o){
     const old = document.getElementById('mobileTextEditModal');
     if(old) old.remove();
