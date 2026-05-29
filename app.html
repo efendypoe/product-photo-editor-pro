@@ -1875,13 +1875,13 @@
     // UPPERCASE
     document.getElementById('mobTextUpper').addEventListener('click', () => {
       const ta = document.getElementById('mobTextEditInput');
-      if(ta) ta.value = ta.value.toUpperCase();
+      if(ta){ ta.value = ta.value.toUpperCase(); applyLivePreview(); }
     });
 
     // Normal case
     document.getElementById('mobTextNormal').addEventListener('click', () => {
       const ta = document.getElementById('mobTextEditInput');
-      if(ta) ta.value = ta.value.toLowerCase().split(' ').map(w => w.charAt(0).toUpperCase()+w.slice(1)).join(' ');
+      if(ta){ ta.value = ta.value.toLowerCase().split(' ').map(w => w.charAt(0).toUpperCase()+w.slice(1)).join(' '); applyLivePreview(); }
     });
 
     // Populate font list from desktop
