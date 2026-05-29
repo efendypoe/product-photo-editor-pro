@@ -1615,11 +1615,45 @@
         <textarea id="mobTextEditInput"
           style="width:100%;background:#0b1220;color:#e5e7eb;border:1px solid #f59e0b;border-radius:12px;padding:12px;font-size:16px;min-height:90px;resize:none;outline:none;font-family:inherit;margin-bottom:12px"
           placeholder="Ketik teks...">${o.text || ''}</textarea>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
           <button id="mobTextEditSave" style="background:#f59e0b;color:#111827;border:0;border-radius:12px;padding:13px;font-weight:900;font-size:15px;cursor:pointer">✅ Simpan</button>
           <button id="mobTextEditDelete" style="background:transparent;color:#ef4444;border:1px solid #ef4444;border-radius:12px;padding:13px;font-weight:700;font-size:15px;cursor:pointer">🗑 Hapus</button>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div style="height:1px;background:#334155;margin-bottom:12px"></div>
+        <h4 style="margin:0 0 8px;font-size:12px;color:#94a3b8;letter-spacing:.05em">STYLE TEKS</h4>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+          <div>
+            <label style="font-size:11px;color:#94a3b8">Ukuran Font</label>
+            <input id="mobFontSize" type="number" value="42" min="8" max="200"
+              style="width:100%;background:#0b1220;color:#e5e7eb;border:1px solid #334155;border-radius:8px;padding:8px;outline:none;margin-top:3px">
+          </div>
+          <div>
+            <label style="font-size:11px;color:#94a3b8">Align</label>
+            <select id="mobTextAlign" style="width:100%;background:#0b1220;color:#e5e7eb;border:1px solid #334155;border-radius:8px;padding:9px;outline:none;margin-top:3px">
+              <option value="left">Left</option>
+              <option value="center">Center</option>
+              <option value="right">Right</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+          <div>
+            <label style="font-size:11px;color:#94a3b8">Warna Teks</label>
+            <input id="mobTextColor" type="color" value="#ffffff"
+              style="width:100%;height:38px;background:#0b1220;border:1px solid #334155;border-radius:8px;padding:2px;cursor:pointer;margin-top:3px">
+          </div>
+          <div>
+            <label style="font-size:11px;color:#94a3b8">Stroke Color</label>
+            <input id="mobStrokeColor" type="color" value="#000000"
+              style="width:100%;height:38px;background:#0b1220;border:1px solid #334155;border-radius:8px;padding:2px;cursor:pointer;margin-top:3px">
+          </div>
+        </div>
+        <div style="margin-bottom:10px">
+          <label style="font-size:11px;color:#94a3b8">Font</label>
+          <select id="mobFontFamily" style="width:100%;background:#0b1220;color:#e5e7eb;border:1px solid #334155;border-radius:8px;padding:9px;outline:none;margin-top:3px">
+          </select>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:4px">
           <button id="mobTextUpper" style="background:transparent;color:#e5e7eb;border:1px solid #334155;border-radius:10px;padding:10px;font-weight:700;font-size:13px;cursor:pointer">UPPERCASE</button>
           <button id="mobTextNormal" style="background:transparent;color:#e5e7eb;border:1px solid #334155;border-radius:10px;padding:10px;font-weight:700;font-size:13px;cursor:pointer">Normal Case</button>
         </div>
@@ -1632,17 +1666,7 @@
       if(ta){ ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }
     }, 100);
 
-    // Save
-    document.getElementById('mobTextEditSave').addEventListener('click', () => {
-      const newText = document.getElementById('mobTextEditInput').value;
-      save();
-      state.images.forEach(img => {
-        const it = img.items.find(x => x.group === o.group && x.type === 'text');
-        if(it) it.text = newText;
-      });
-      renderImage(state.currentIndex);
-      div.remove();
-    });
+    // Save handled below with style changes
 
     // Delete element
     document.getElementById('mobTextEditDelete').addEventListener('click', () => {
@@ -1664,6 +1688,49 @@
       const ta = document.getElementById('mobTextEditInput');
       if(ta) ta.value = ta.value.toLowerCase().split(' ').map(w => w.charAt(0).toUpperCase()+w.slice(1)).join(' ');
     });
+
+    // Populate font list from desktop select
+    const mobFont = document.getElementById('mobFontFamily');
+    const origFont = document.getElementById('fontFamily');
+    if(mobFont && origFont){
+      mobFont.innerHTML = origFont.innerHTML;
+      mobFont.value = o.fontFamily || origFont.value;
+    }
+
+    // Sync current text properties to modal
+    const mobFontSize = document.getElementById('mobFontSize');
+    const mobTextColor = document.getElementById('mobTextColor');
+    const mobStrokeColor = document.getElementById('mobStrokeColor');
+    const mobTextAlign = document.getElementById('mobTextAlign');
+    if(mobFontSize) mobFontSize.value = o.fontSize || 42;
+    if(mobTextColor) mobTextColor.value = o.color || '#ffffff';
+    if(mobStrokeColor) mobStrokeColor.value = o.strokeColor || '#000000';
+    if(mobTextAlign) mobTextAlign.value = o.align || 'center';
+
+    // Save also applies style changes
+    const origSave = document.getElementById('mobTextEditSave');
+    origSave.addEventListener('click', () => {
+      const newText = document.getElementById('mobTextEditInput').value;
+      const newSize = parseInt(document.getElementById('mobFontSize')?.value) || o.fontSize;
+      const newColor = document.getElementById('mobTextColor')?.value || o.color;
+      const newStroke = document.getElementById('mobStrokeColor')?.value || o.strokeColor;
+      const newAlign = document.getElementById('mobTextAlign')?.value || o.align;
+      const newFont = document.getElementById('mobFontFamily')?.value || o.fontFamily;
+      save();
+      state.images.forEach(img => {
+        const it = img.items.find(x => x.group === o.group && x.type === 'text');
+        if(it){
+          it.text = newText;
+          it.fontSize = newSize;
+          it.color = newColor;
+          it.strokeColor = newStroke;
+          it.align = newAlign;
+          it.fontFamily = newFont;
+        }
+      });
+      renderImage(state.currentIndex);
+      div.remove();
+    }, { once: true });
 
     // Close
     document.getElementById('mobTextEditClose').addEventListener('click', () => div.remove());
@@ -1901,7 +1968,10 @@
             <div id="mobAuthLoggedOut2">
               <div style="font-size:12px;color:#94a3b8;margin-bottom:8px">Login untuk simpan & unlock Pro</div>
               <input id="mobEmail" type="email" placeholder="Email" style="width:100%;background:#0b1220;color:#e5e7eb;border:1px solid #334155;border-radius:10px;padding:10px;margin-bottom:8px;outline:none">
-              <input id="mobPassword" type="password" placeholder="Password" style="width:100%;background:#0b1220;color:#e5e7eb;border:1px solid #334155;border-radius:10px;padding:10px;margin-bottom:8px;outline:none">
+              <div style="position:relative;margin-bottom:8px">
+                <input id="mobPassword" type="password" placeholder="Password" style="width:100%;background:#0b1220;color:#e5e7eb;border:1px solid #334155;border-radius:10px;padding:10px 40px 10px 10px;outline:none">
+                <button type="button" id="mobTogglePass" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:transparent;border:0;color:#94a3b8;font-size:16px;cursor:pointer;padding:4px">👁</button>
+              </div>
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
                 <button type="button" id="mobLoginBtn" style="background:#f59e0b;color:#111827;border:0;border-radius:10px;padding:10px;font-weight:900;cursor:pointer">Login</button>
                 <button type="button" id="mobRegisterBtn" style="background:transparent;color:#e5e7eb;border:1px solid #334155;border-radius:10px;padding:10px;font-weight:700;cursor:pointer">Register</button>
@@ -2020,7 +2090,7 @@
           <label style="font-size:12px;color:#cbd5e1">SKU / Code</label>
           <input id="mob_productSKU" type="text" placeholder="K1A / 5TP / 3C1" style="width:100%;background:#0b1220;color:#e5e7eb;border:1px solid #334155;border-radius:10px;padding:10px;margin-bottom:14px;outline:none">
           <button type="button" id="mob_downloadCurrentBtn" style="width:100%;background:#f59e0b;color:#111827;border:0;border-radius:12px;padding:14px;font-weight:900;font-size:16px;cursor:pointer;margin-bottom:8px" id="mob_downloadCurrentBtn">📤 Share / Download</button>
-          <button type="button" id="mob_downloadAllBtn" style="width:100%;background:#22c55e;color:#052e14;border:0;border-radius:12px;padding:14px;font-weight:900;font-size:16px;cursor:pointer;margin-bottom:8px">⬇ Download All</button>
+          <button type="button" id="mob_downloadAllBtn" style="width:100%;background:#22c55e;color:#052e14;border:0;border-radius:12px;padding:14px;font-weight:900;font-size:16px;cursor:pointer;margin-bottom:8px">📤 Share All Images</button>
           <button type="button" id="mob_downloadZipBtn" style="width:100%;background:transparent;color:#e5e7eb;border:1px solid #334155;border-radius:12px;padding:13px;font-weight:700;cursor:pointer">Download ZIP</button>
         </div>`;
 
@@ -2110,6 +2180,16 @@
         mobRegBtn.textContent = 'Register';
       });
 
+      // Password eye toggle
+      const mobTogglePass = document.getElementById('mobTogglePass');
+      const mobPassInput = document.getElementById('mobPassword');
+      if(mobTogglePass && mobPassInput){
+        mobTogglePass.addEventListener('click', () => {
+          mobPassInput.type = mobPassInput.type === 'password' ? 'text' : 'password';
+          mobTogglePass.textContent = mobPassInput.type === 'password' ? '👁' : '🙈';
+        });
+      }
+
       wire('mobUpgradeBtn2', 'upgradeAccountBtn');
       wire('mobLogoutBtn2', 'logoutBtn');
     }
@@ -2170,7 +2250,57 @@
       // Show share tip if Web Share API available
       const shareTip = document.getElementById('mob_shareTip');
       if(shareTip && navigator.share) shareTip.style.display = 'block';
-      wire('mob_downloadAllBtn', 'downloadAllBtn');
+      // Download All — share all files on mobile
+      const mobDlAll = document.getElementById('mob_downloadAllBtn');
+      if(mobDlAll) mobDlAll.addEventListener('click', async () => {
+        if(!(await beforeExportCheck())) return;
+        const totalImages = state.images.length;
+        if(totalImages === 0){ alert('Tidak ada gambar untuk di-share.'); return; }
+
+        mobDlAll.disabled = true;
+        mobDlAll.textContent = 'Memproses...';
+
+        // Export all images to blobs
+        const files = [];
+        for(let i = 0; i < totalImages; i++){
+          mobDlAll.textContent = `Export ${i+1}/${totalImages}...`;
+          const blob = await exportImageAt(i);
+          const filename = outName(state.images[i].name);
+          files.push(new File([blob], filename, { type: 'image/jpeg' }));
+        }
+
+        // Try share all at once (iOS 15+, Android Chrome)
+        if(navigator.canShare && navigator.canShare({ files })){
+          try {
+            await navigator.share({ files, title: 'Product Photos' });
+          } catch(err){
+            if(err.name !== 'AbortError'){
+              // Fallback: share one by one
+              for(const file of files){
+                try { await navigator.share({ files: [file] }); } catch(e2){}
+              }
+            }
+          }
+        } else if(navigator.share) {
+          // Share one by one
+          for(const file of files){
+            try { await navigator.share({ files: [file] }); } catch(e){}
+          }
+        } else {
+          // Desktop fallback — download all
+          for(const file of files){
+            const url = URL.createObjectURL(file);
+            const a = document.createElement('a');
+            a.href = url; a.download = file.name;
+            document.body.appendChild(a); a.click(); a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1500);
+            await new Promise(r => setTimeout(r, 300));
+          }
+        }
+
+        mobDlAll.disabled = false;
+        mobDlAll.textContent = '📤 Share All Images';
+      });
       wire('mob_downloadZipBtn', 'downloadZipBtn');
       wire('mob_productName', 'productName', 'text');
       wire('mob_productSKU', 'productSKU', 'text');
