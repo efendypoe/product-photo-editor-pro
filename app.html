@@ -45,12 +45,22 @@
       .thumbs {
         display:flex !important;
         overflow-x:auto !important;
-        gap:8px !important;
-        padding:8px !important;
+        gap:6px !important;
+        padding:8px 10px !important;
         flex-wrap:nowrap !important;
+        -webkit-overflow-scrolling:touch !important;
+        scrollbar-width:none !important;
       }
-      .thumb { min-width:80px !important; flex-shrink:0 !important; }
-      .thumb img { height:70px !important; }
+      .thumbs::-webkit-scrollbar { display:none !important; }
+      .thumb {
+        min-width:64px !important;
+        max-width:64px !important;
+        flex-shrink:0 !important;
+        padding:4px !important;
+        border-radius:8px !important;
+      }
+      .thumb img { height:56px !important; border-radius:6px !important; }
+      .thumb .name { font-size:9px !important; margin-top:3px !important; white-space:nowrap !important; overflow:hidden !important; text-overflow:ellipsis !important; }
 
       /* Bottom sheet */
       #mobileBottomSheet {
@@ -84,7 +94,12 @@
         padding:0 0 4px !important;
         background:rgba(17,24,39,.97) !important;
       }
-      .center .card:nth-child(2) h2 { padding:8px 12px 0; margin:0 !important; font-size:13px; }
+      .center .card:nth-child(2) h2 {
+        padding:6px 10px 2px !important;
+        margin:0 !important;
+        font-size:12px !important;
+        color:#94a3b8 !important;
+      }
 
       body { padding-bottom: 130px; }
     }
@@ -1608,17 +1623,42 @@
 
       case 'elements': return `
         <div style="padding:4px 0 12px">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
+          <h3 style="margin:0 0 8px;font-size:12px;color:#94a3b8;letter-spacing:.05em">ADD ELEMENT</h3>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
             <button type="button" id="mob_addTextBtn" style="background:#f59e0b;color:#111827;border:0;border-radius:10px;padding:12px;font-weight:900;cursor:pointer;font-size:15px">+ Text</button>
             <button type="button" id="mob_addLogoBtn" style="background:transparent;color:#e5e7eb;border:1px solid #334155;border-radius:10px;padding:12px;font-weight:700;cursor:pointer;font-size:15px">+ Logo</button>
           </div>
-          <input id="mob_presetText1" type="text" placeholder="Preset Text 1" style="width:100%;background:#0b1220;color:#e5e7eb;border:1px solid #334155;border-radius:10px;padding:10px;margin-bottom:8px;outline:none">
-          <input id="mob_presetText2" type="text" placeholder="Preset Text 2" style="width:100%;background:#0b1220;color:#e5e7eb;border:1px solid #334155;border-radius:10px;padding:10px;margin-bottom:8px;outline:none">
-          <input id="mob_presetText3" type="text" placeholder="Preset Text 3 / SKU" style="width:100%;background:#0b1220;color:#e5e7eb;border:1px solid #334155;border-radius:10px;padding:10px;margin-bottom:8px;outline:none">
+          <input id="mob_presetText1" type="text" placeholder="Preset Text 1" style="width:100%;background:#0b1220;color:#e5e7eb;border:1px solid #334155;border-radius:10px;padding:10px;margin-bottom:6px;outline:none">
+          <input id="mob_presetText2" type="text" placeholder="Preset Text 2" style="width:100%;background:#0b1220;color:#e5e7eb;border:1px solid #334155;border-radius:10px;padding:10px;margin-bottom:6px;outline:none">
+          <input id="mob_presetText3" type="text" placeholder="Preset Text 3 / SKU" style="width:100%;background:#0b1220;color:#e5e7eb;border:1px solid #334155;border-radius:10px;padding:10px;margin-bottom:10px;outline:none">
           <button type="button" id="mob_addPresetPack" style="width:100%;background:#22c55e;color:#052e14;border:0;border-radius:10px;padding:11px;font-weight:900;cursor:pointer;margin-bottom:14px">Add Preset Pack</button>
-          <div style="height:1px;background:#334155;margin-bottom:14px"></div>
-          <div id="mob_elementProps">
-            <div style="color:#94a3b8;font-size:12px;text-align:center;padding:10px 0">Tap element on canvas to edit</div>
+
+          <div style="height:1px;background:#334155;margin-bottom:12px"></div>
+          <h3 style="margin:0 0 8px;font-size:12px;color:#94a3b8;letter-spacing:.05em">TEXT CASE</h3>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
+            <button type="button" id="mob_caseUpper" style="background:#f59e0b;color:#111827;border:0;border-radius:10px;padding:10px;font-weight:900;cursor:pointer;font-size:13px">UPPERCASE</button>
+            <button type="button" id="mob_caseNormal" style="background:transparent;color:#e5e7eb;border:1px solid #334155;border-radius:10px;padding:10px;font-weight:700;cursor:pointer;font-size:13px">Normal Case</button>
+          </div>
+
+          <div style="height:1px;background:#334155;margin-bottom:12px"></div>
+          <h3 style="margin:0 0 8px;font-size:12px;color:#94a3b8;letter-spacing:.05em">QUICK POSITION</h3>
+          <div style="font-size:11px;color:#94a3b8;margin-bottom:6px">Horizontal</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px">
+            <button type="button" id="mob_posLeft" style="background:transparent;color:#e5e7eb;border:1px solid #334155;border-radius:10px;padding:10px;font-weight:700;cursor:pointer;font-size:13px">◀ Left</button>
+            <button type="button" id="mob_posHCenter" style="background:#f59e0b;color:#111827;border:0;border-radius:10px;padding:10px;font-weight:900;cursor:pointer;font-size:13px">Center</button>
+            <button type="button" id="mob_posRight" style="background:transparent;color:#e5e7eb;border:1px solid #334155;border-radius:10px;padding:10px;font-weight:700;cursor:pointer;font-size:13px">Right ▶</button>
+          </div>
+          <div style="font-size:11px;color:#94a3b8;margin-bottom:6px">Vertical</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:14px">
+            <button type="button" id="mob_posTop" style="background:transparent;color:#e5e7eb;border:1px solid #334155;border-radius:10px;padding:10px;font-weight:700;cursor:pointer;font-size:13px">▲ Top</button>
+            <button type="button" id="mob_posVCenter" style="background:#f59e0b;color:#111827;border:0;border-radius:10px;padding:10px;font-weight:900;cursor:pointer;font-size:13px">Center</button>
+            <button type="button" id="mob_posUnder" style="background:transparent;color:#e5e7eb;border:1px solid #334155;border-radius:10px;padding:10px;font-weight:700;cursor:pointer;font-size:13px">▼ Under</button>
+          </div>
+
+          <div style="height:1px;background:#334155;margin-bottom:12px"></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:4px">
+            <button type="button" id="mob_lockElement" style="background:transparent;color:#e5e7eb;border:1px solid #334155;border-radius:10px;padding:10px;font-weight:700;cursor:pointer;font-size:13px">🔒 Lock</button>
+            <button type="button" id="mob_deleteElement" style="background:transparent;color:#ef4444;border:1px solid #ef4444;border-radius:10px;padding:10px;font-weight:700;cursor:pointer;font-size:13px">🗑 Delete</button>
           </div>
         </div>`;
 
@@ -1731,6 +1771,23 @@
       wire('mob_presetText1', 'presetText1', 'text');
       wire('mob_presetText2', 'presetText2', 'text');
       wire('mob_presetText3', 'presetText3', 'text');
+      // Text case
+      wire('mob_caseUpper', 'caseUpper');
+      wire('mob_caseNormal', 'caseNormal');
+      // Quick position
+      wire('mob_posLeft', 'posLeft');
+      wire('mob_posHCenter', 'posHCenter');
+      wire('mob_posRight', 'posRight');
+      wire('mob_posTop', 'posTop');
+      wire('mob_posVCenter', 'posVCenter');
+      wire('mob_posUnder', 'posUnder');
+      // Lock & delete
+      wire('mob_lockElement', 'lockElement');
+      const mobDel = document.getElementById('mob_deleteElement');
+      if(mobDel) mobDel.addEventListener('click', () => {
+        // Trigger delete via keyboard Delete key on window
+        window.dispatchEvent(new KeyboardEvent('keydown', {key:'Delete', bubbles:true}));
+      });
       // Sync preset text values from desktop
       ['mob_presetText1:presetText1','mob_presetText2:presetText2','mob_presetText3:presetText3'].forEach(pair => {
         const [mId, oId] = pair.split(':');
