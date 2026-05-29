@@ -105,6 +105,11 @@
       #stageInner, .workspace { touch-action: none !important; }
     }
 
+    /* Prevent layout shift when virtual keyboard appears */
+    @media (max-width: 768px) {
+      .center { min-height: 0 !important; }
+      .workspace { min-height: 200px !important; }
+    }
     /* Canvas preview strip when modal open */
     .mob-preview-active { opacity:0.92; }
 
@@ -1404,7 +1409,7 @@
     layer.style.display='block';
     layer.style.background=`radial-gradient(circle at center, rgba(255,255,255,0) 0%, rgba(255,255,255,0) ${safe}%, rgba(255,255,255,${alpha}) ${feather}%, rgba(255,255,255,${alpha}) 100%)`;
   }
-  function applyBaseImageLayout(img){ensurePhotoAdjust(img);ensureImageTransform(img);ensureBgCleanup(img);const nw=el.baseImage.naturalWidth||800,nh=el.baseImage.naturalHeight||800,maxW=1100,maxH=Math.max(420,window.innerHeight*.72);let cw,ch,baseScale;if(img.transform.mode==='square'){const s=Math.min(maxW,maxH);cw=s;ch=s;baseScale=Math.min(cw/nw,ch/nh)}else{baseScale=Math.min(maxW/nw,maxH/nh,1);cw=Math.round(nw*baseScale);ch=Math.round(nh*baseScale)}const zoom=img.transform.zoom/100,iw=nw*baseScale*zoom,ih=nh*baseScale*zoom;el.stageInner.style.width=cw+'px';el.stageInner.style.height=ch+'px';el.baseImage.style.display='block';el.baseImage.style.width=iw+'px';el.baseImage.style.height=ih+'px';el.baseImage.style.left=(img.transform.x/100*cw-iw/2)+'px';el.baseImage.style.top=(img.transform.y/100*ch-ih/2)+'px';el.baseImage.style.filter=photoFilter(img);updateEdgePreview(img)}
+  function applyBaseImageLayout(img){ensurePhotoAdjust(img);ensureImageTransform(img);ensureBgCleanup(img);const nw=el.baseImage.naturalWidth||800,nh=el.baseImage.naturalHeight||800,maxW=1100,_vh=(window.screen&&window.screen.height>100?window.screen.height:window.innerHeight),maxH=Math.max(420,_vh*.55);let cw,ch,baseScale;if(img.transform.mode==='square'){const s=Math.min(maxW,maxH);cw=s;ch=s;baseScale=Math.min(cw/nw,ch/nh)}else{baseScale=Math.min(maxW/nw,maxH/nh,1);cw=Math.round(nw*baseScale);ch=Math.round(nh*baseScale)}const zoom=img.transform.zoom/100,iw=nw*baseScale*zoom,ih=nh*baseScale*zoom;el.stageInner.style.width=cw+'px';el.stageInner.style.height=ch+'px';el.baseImage.style.display='block';el.baseImage.style.width=iw+'px';el.baseImage.style.height=ih+'px';el.baseImage.style.left=(img.transform.x/100*cw-iw/2)+'px';el.baseImage.style.top=(img.transform.y/100*ch-ih/2)+'px';el.baseImage.style.filter=photoFilter(img);updateEdgePreview(img)}
   function refreshStage(){const img=currentImage();if(!img)return;applyBaseImageLayout(img);syncPhotoControls();el.stageInner.querySelectorAll('.overlay').forEach(n=>n.remove());img.items.forEach(addOverlay);syncPanel()}
   let mobileHintShown = false;
   function showMobileHint(){
@@ -1872,18 +1877,6 @@
       div.remove();
     });
 
-    // UPPERCASE
-    document.getElementById('mobTextUpper').addEventListener('click', () => {
-      const ta = document.getElementById('mobTextEditInput');
-      if(ta){ ta.value = ta.value.toUpperCase(); applyLivePreview(); }
-    });
-
-    // Normal case
-    document.getElementById('mobTextNormal').addEventListener('click', () => {
-      const ta = document.getElementById('mobTextEditInput');
-      if(ta){ ta.value = ta.value.toLowerCase().split(' ').map(w => w.charAt(0).toUpperCase()+w.slice(1)).join(' '); applyLivePreview(); }
-    });
-
     // Populate font list from desktop
     const mobFont = document.getElementById('mobFontFamily');
     const origFont = document.getElementById('fontFamily');
@@ -1960,6 +1953,19 @@
       renderImage(state.currentIndex);
     }
 
+    // UPPERCASE & Normal Case — must be after applyLivePreview is defined
+    const taUpper = document.getElementById('mobTextUpper');
+    const taNormal = document.getElementById('mobTextNormal');
+    const taInput = document.getElementById('mobTextEditInput');
+    if(taUpper && taInput) taUpper.addEventListener('click', () => {
+      taInput.value = taInput.value.toUpperCase();
+      applyLivePreview();
+    });
+    if(taNormal && taInput) taNormal.addEventListener('click', () => {
+      taInput.value = taInput.value.toLowerCase().split(' ').map(w => w.charAt(0).toUpperCase()+w.slice(1)).join(' ');
+      applyLivePreview();
+    });
+
     // Wire ALL inputs to live preview
     const liveInputIds = [
       'mobTextEditInput','mobFontFamily','mobFontSize','mobTextAlign',
@@ -1989,11 +1995,12 @@
     // SAVE — commit to history & close
     const origSave = g('mobTextEditSave');
     origSave.addEventListener('click', () => {
-      applyLivePreview(); // ensure latest values applied
+      applyLivePreview();
       clearTimeout(previewTimer);
-      save(); // commit to undo history
-      renderImage(state.currentIndex);
+      save();
       div.remove();
+      // Re-render after modal removed so canvas gets correct dimensions
+      setTimeout(() => renderImage(state.currentIndex), 100);
     }, { once: true });
 
     // CLOSE / CANCEL — restore original & close
@@ -2001,6 +2008,8 @@
       clearTimeout(previewTimer);
       restoreOriginal();
       div.remove();
+      // Re-render canvas after modal close so layout recomputes correctly
+      setTimeout(() => renderImage(state.currentIndex), 100);
     };
     document.getElementById('mobTextEditClose').addEventListener('click', closeModal);
     div.addEventListener('click', e => { if(e.target === div) closeModal(); });
