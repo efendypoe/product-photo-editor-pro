@@ -1457,6 +1457,25 @@
   // ===== TOUCH SUPPORT FOR MOBILE CANVAS =====
   function getTouchPos(e){ return { clientX: e.touches[0]?.clientX ?? e.changedTouches[0].clientX, clientY: e.touches[0]?.clientY ?? e.changedTouches[0].clientY }; }
 
+  // Double-tap to unlock/lock image move on mobile
+  let imageMoveUnlocked = false;
+  let lastTapTime = 0;
+  let doubleTapTimer = null;
+
+  function showMoveIndicator(unlocked){
+    let ind = document.getElementById('imageMoveIndicator');
+    if(!ind){
+      ind = document.createElement('div');
+      ind.id = 'imageMoveIndicator';
+      ind.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.72);color:#fff;border-radius:12px;padding:10px 18px;font-size:14px;font-weight:900;pointer-events:none;z-index:999;transition:opacity .4s';
+      el.stageInner.appendChild(ind);
+    }
+    ind.textContent = unlocked ? '🔓 Move Unlocked — Drag image' : '🔒 Move Locked';
+    ind.style.opacity = '1';
+    clearTimeout(ind._timer);
+    ind._timer = setTimeout(() => { ind.style.opacity = '0'; }, 1400);
+  }
+
   el.stageInner.addEventListener('touchstart', e => {
     // Close bottom sheet when touching canvas
     const sheet = document.getElementById('mobileBottomSheet');
@@ -1464,23 +1483,42 @@
       sheet.classList.remove('open');
       window.currentMobileTab = '';
       document.querySelectorAll('.mob-tab').forEach(b => b.classList.remove('active'));
+      e.preventDefault();
+      return;
     }
 
     const touch = getTouchPos(e);
     const node = e.target.closest('.overlay');
 
+    // Double-tap detection on canvas background (not on element)
     if(!node){
-      selectItem(null, null);
-      const img = currentImage();
-      if(img){
-        ensureImageTransform(img);
-        const rect = el.stageInner.getBoundingClientRect();
-        state.action = { kind:'image', startX:touch.clientX, startY:touch.clientY, originX:img.transform.x, originY:img.transform.y, rect };
+      const now = Date.now();
+      const gap = now - lastTapTime;
+      lastTapTime = now;
+
+      if(gap < 320){
+        // Double tap — toggle image move lock
+        imageMoveUnlocked = !imageMoveUnlocked;
+        showMoveIndicator(imageMoveUnlocked);
         e.preventDefault();
+        return;
+      }
+
+      // Single tap on background — only drag if unlocked
+      selectItem(null, null);
+      if(imageMoveUnlocked){
+        const img = currentImage();
+        if(img){
+          ensureImageTransform(img);
+          const rect = el.stageInner.getBoundingClientRect();
+          state.action = { kind:'image', startX:touch.clientX, startY:touch.clientY, originX:img.transform.x, originY:img.transform.y, rect };
+          e.preventDefault();
+        }
       }
       return;
     }
 
+    // Tap on element — always allow
     const o = currentImage()?.items.find(it => it.id === node.dataset.id);
     if(!o) return;
     selectItem(o.id, o.type);
