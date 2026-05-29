@@ -1876,6 +1876,9 @@
     }, {passive:true});
   })();
 
+  // Expose to global scope (needed for onclick in HTML)
+  window.mobileTab = mobileTab;
+
 })();
 </script>
 </body>
