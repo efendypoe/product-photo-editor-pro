@@ -1528,180 +1528,349 @@
 
   // ===== MOBILE UI =====
   const isMobile = () => window.innerWidth <= 768;
+  let currentMobileTab = '';
 
-  // Tab content map — which desktop card IDs to show in each tab
-  const tabMap = {
-    image: {
-      title: '📷 Image',
-      ids: ['authCard', 'imagesCard']
-    },
-    edit: {
-      title: '✏️ Photo Edit',
-      ids: ['photoEditCard']
-    },
-    elements: {
-      title: '🎨 Elements',
-      ids: ['elementsCard', 'elementPropsCard']
-    },
-    export: {
-      title: '⬇️ Export',
-      ids: ['exportNameCard', 'historyExportCard']
-    },
-    template: {
-      title: '📋 Template',
-      ids: ['templateCard']
+  // Build tab content as direct HTML — no cloning, no rewiring
+  function getMobileTabHTML(tabName){
+    switch(tabName){
+
+      case 'image': return `
+        <div style="padding:4px 0 12px">
+          <button type="button" id="mobUploadBtn"
+            style="width:100%;padding:18px;border-radius:14px;border:2px dashed #f59e0b;
+                   background:rgba(245,158,11,.08);color:#f59e0b;font-weight:900;
+                   font-size:16px;cursor:pointer;margin-bottom:14px;display:block">
+            📁 Pilih / Upload Foto Produk
+          </button>
+          <div style="background:rgba(31,41,55,.96);border:1px solid #334155;border-radius:12px;padding:12px" id="mobAuthMini">
+            <div id="mobAuthLoggedOut2">
+              <div style="font-size:12px;color:#94a3b8;margin-bottom:8px">Login untuk simpan & unlock Pro</div>
+              <input id="mobEmail" type="email" placeholder="Email" style="width:100%;background:#0b1220;color:#e5e7eb;border:1px solid #334155;border-radius:10px;padding:10px;margin-bottom:8px;outline:none">
+              <input id="mobPassword" type="password" placeholder="Password" style="width:100%;background:#0b1220;color:#e5e7eb;border:1px solid #334155;border-radius:10px;padding:10px;margin-bottom:8px;outline:none">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                <button type="button" id="mobLoginBtn" style="background:#f59e0b;color:#111827;border:0;border-radius:10px;padding:10px;font-weight:900;cursor:pointer">Login</button>
+                <button type="button" id="mobRegisterBtn" style="background:transparent;color:#e5e7eb;border:1px solid #334155;border-radius:10px;padding:10px;font-weight:700;cursor:pointer">Register</button>
+              </div>
+            </div>
+            <div id="mobAuthLoggedIn2" style="display:none">
+              <div style="font-size:12px;color:#94a3b8">Login sebagai:</div>
+              <div id="mobUserEmail2" style="font-size:13px;font-weight:700;margin:4px 0 8px;word-break:break-all"></div>
+              <div id="mobPlanBadge2" style="display:inline-block;background:#0b1220;border:1px solid #334155;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:800;margin-bottom:8px">Plan: FREE</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                <button type="button" id="mobUpgradeBtn2" style="background:#f59e0b;color:#111827;border:0;border-radius:10px;padding:10px;font-weight:900;cursor:pointer">Upgrade Pro</button>
+                <button type="button" id="mobLogoutBtn2" style="background:transparent;color:#e5e7eb;border:1px solid #334155;border-radius:10px;padding:10px;font-weight:700;cursor:pointer">Logout</button>
+              </div>
+            </div>
+          </div>
+        </div>`;
+
+      case 'edit': return `
+        <div style="padding:4px 0 12px">
+          <h3 style="margin:0 0 10px;font-size:13px;color:#94a3b8">PHOTO PRESETS</h3>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
+            <button type="button" id="mob_presetAuto" style="background:#f59e0b;color:#111827;border:0;border-radius:10px;padding:11px;font-weight:700;cursor:pointer">Auto Enhance</button>
+            <button type="button" id="mob_presetShopee" style="background:transparent;color:#e5e7eb;border:1px solid #334155;border-radius:10px;padding:11px;font-weight:700;cursor:pointer">Bright Shopee</button>
+            <button type="button" id="mob_presetDetail" style="background:transparent;color:#e5e7eb;border:1px solid #334155;border-radius:10px;padding:11px;font-weight:700;cursor:pointer">Sharp Detail</button>
+            <button type="button" id="mob_presetNatural" style="background:transparent;color:#e5e7eb;border:1px solid #334155;border-radius:10px;padding:11px;font-weight:700;cursor:pointer">Soft Natural</button>
+          </div>
+          <h3 style="margin:0 0 8px;font-size:13px;color:#94a3b8">ADJUSTMENTS</h3>
+          <label style="font-size:12px;color:#cbd5e1">Brightness</label>
+          <input type="range" id="mob_photoBrightness" min="50" max="180" value="100" style="width:100%;margin-bottom:10px">
+          <label style="font-size:12px;color:#cbd5e1">Contrast</label>
+          <input type="range" id="mob_photoContrast" min="50" max="180" value="100" style="width:100%;margin-bottom:10px">
+          <label style="font-size:12px;color:#cbd5e1">Exposure</label>
+          <input type="range" id="mob_photoExposure" min="50" max="180" value="100" style="width:100%;margin-bottom:14px">
+          <button type="button" id="mob_presetNormal" style="width:100%;background:transparent;color:#e5e7eb;border:1px solid #334155;border-radius:10px;padding:10px;font-weight:700;cursor:pointer">Reset Photo</button>
+          <div style="height:1px;background:#334155;margin:14px 0"></div>
+          <h3 style="margin:0 0 8px;font-size:13px;color:#94a3b8">BACKGROUND CLEANUP</h3>
+          <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:#cbd5e1;margin-bottom:8px">
+            <input type="checkbox" id="mob_bgCleanEnable" style="width:auto"> White Background
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:#cbd5e1;margin-bottom:8px">
+            <input type="checkbox" id="mob_bgAdvancedEnable" style="width:auto"> Advanced Cleanup V2
+          </label>
+          <label style="font-size:12px;color:#cbd5e1">Strength</label>
+          <input type="range" id="mob_bgStrength" min="0" max="100" value="0" style="width:100%;margin-bottom:10px">
+          <button type="button" id="mob_bgReset" style="width:100%;background:transparent;color:#e5e7eb;border:1px solid #334155;border-radius:10px;padding:10px;font-weight:700;cursor:pointer">Reset Background</button>
+          <div style="height:1px;background:#334155;margin:14px 0"></div>
+          <h3 style="margin:0 0 8px;font-size:13px;color:#94a3b8">CANVAS</h3>
+          <select id="mob_canvasMode" style="width:100%;background:#0b1220;color:#e5e7eb;border:1px solid #334155;border-radius:10px;padding:10px;margin-bottom:8px;outline:none">
+            <option value="original">Original Ratio</option>
+            <option value="square">1:1 Square</option>
+          </select>
+          <label style="font-size:12px;color:#cbd5e1">Zoom</label>
+          <input type="range" id="mob_imageZoom" min="30" max="250" value="100" style="width:100%;margin-bottom:10px">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <button type="button" id="mob_centerImage" style="background:transparent;color:#e5e7eb;border:1px solid #334155;border-radius:10px;padding:10px;font-weight:700;cursor:pointer">Center</button>
+            <button type="button" id="mob_resetImageTransform" style="background:transparent;color:#e5e7eb;border:1px solid #334155;border-radius:10px;padding:10px;font-weight:700;cursor:pointer">Reset</button>
+          </div>
+        </div>`;
+
+      case 'elements': return `
+        <div style="padding:4px 0 12px">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
+            <button type="button" id="mob_addTextBtn" style="background:#f59e0b;color:#111827;border:0;border-radius:10px;padding:12px;font-weight:900;cursor:pointer;font-size:15px">+ Text</button>
+            <button type="button" id="mob_addLogoBtn" style="background:transparent;color:#e5e7eb;border:1px solid #334155;border-radius:10px;padding:12px;font-weight:700;cursor:pointer;font-size:15px">+ Logo</button>
+          </div>
+          <input id="mob_presetText1" type="text" placeholder="Preset Text 1" style="width:100%;background:#0b1220;color:#e5e7eb;border:1px solid #334155;border-radius:10px;padding:10px;margin-bottom:8px;outline:none">
+          <input id="mob_presetText2" type="text" placeholder="Preset Text 2" style="width:100%;background:#0b1220;color:#e5e7eb;border:1px solid #334155;border-radius:10px;padding:10px;margin-bottom:8px;outline:none">
+          <input id="mob_presetText3" type="text" placeholder="Preset Text 3 / SKU" style="width:100%;background:#0b1220;color:#e5e7eb;border:1px solid #334155;border-radius:10px;padding:10px;margin-bottom:8px;outline:none">
+          <button type="button" id="mob_addPresetPack" style="width:100%;background:#22c55e;color:#052e14;border:0;border-radius:10px;padding:11px;font-weight:900;cursor:pointer;margin-bottom:14px">Add Preset Pack</button>
+          <div style="height:1px;background:#334155;margin-bottom:14px"></div>
+          <div id="mob_elementProps">
+            <div style="color:#94a3b8;font-size:12px;text-align:center;padding:10px 0">Tap element on canvas to edit</div>
+          </div>
+        </div>`;
+
+      case 'export': return `
+        <div style="padding:4px 0 12px">
+          <div id="mob_exportCounter" style="background:#0b1220;border:1px solid #334155;border-radius:12px;padding:12px;margin-bottom:14px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+              <span style="font-size:12px;font-weight:700">Daily Export</span>
+              <span id="mob_counterBadge" style="font-size:11px;font-weight:900;padding:3px 8px;border-radius:999px;background:#334155">...</span>
+            </div>
+            <div style="background:#1f2937;border-radius:999px;height:6px"><div id="mob_counterFill" style="height:100%;border-radius:999px;background:#22c55e;width:0%;transition:width .4s"></div></div>
+            <div id="mob_counterSub" style="font-size:11px;color:#94a3b8;margin-top:6px">Loading...</div>
+          </div>
+          <label style="font-size:12px;color:#cbd5e1">Product Name</label>
+          <input id="mob_productName" type="text" placeholder="BLOK SEHER BEAT FI" style="width:100%;background:#0b1220;color:#e5e7eb;border:1px solid #334155;border-radius:10px;padding:10px;margin-bottom:8px;outline:none">
+          <label style="font-size:12px;color:#cbd5e1">SKU / Code</label>
+          <input id="mob_productSKU" type="text" placeholder="K1A / 5TP / 3C1" style="width:100%;background:#0b1220;color:#e5e7eb;border:1px solid #334155;border-radius:10px;padding:10px;margin-bottom:14px;outline:none">
+          <button type="button" id="mob_downloadCurrentBtn" style="width:100%;background:#f59e0b;color:#111827;border:0;border-radius:12px;padding:14px;font-weight:900;font-size:16px;cursor:pointer;margin-bottom:8px">⬇ Download Image</button>
+          <button type="button" id="mob_downloadAllBtn" style="width:100%;background:#22c55e;color:#052e14;border:0;border-radius:12px;padding:14px;font-weight:900;font-size:16px;cursor:pointer;margin-bottom:8px">⬇ Download All</button>
+          <button type="button" id="mob_downloadZipBtn" style="width:100%;background:transparent;color:#e5e7eb;border:1px solid #334155;border-radius:12px;padding:13px;font-weight:700;cursor:pointer">Download ZIP</button>
+        </div>`;
+
+      case 'template': return `
+        <div style="padding:4px 0 12px">
+          <label style="font-size:12px;color:#cbd5e1">Template Slot</label>
+          <select id="mob_templateSlot" style="width:100%;background:#0b1220;color:#e5e7eb;border:1px solid #334155;border-radius:10px;padding:10px;margin-bottom:10px;outline:none">
+            <option value="1">Template 1</option>
+            <option value="2">Template 2</option>
+            <option value="3">Template 3</option>
+            <option value="4">Template 4</option>
+            <option value="5">Template 5</option>
+          </select>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <button type="button" id="mob_saveTemplate" style="background:#f59e0b;color:#111827;border:0;border-radius:10px;padding:11px;font-weight:900;cursor:pointer">Save</button>
+            <button type="button" id="mob_loadTemplate" style="background:transparent;color:#e5e7eb;border:1px solid #334155;border-radius:10px;padding:11px;font-weight:700;cursor:pointer">Load</button>
+          </div>
+        </div>`;
+
+      default: return '';
     }
-  };
+  }
+
+  // Wire mobile tab controls to desktop originals
+  function wireMobileTab(tabName){
+    const wire = (mobId, origId, event='click') => {
+      const mob = document.getElementById(mobId);
+      const orig = document.getElementById(origId);
+      if(!mob || !orig) return;
+      if(event === 'click') mob.addEventListener('click', () => orig.click());
+      else if(event === 'range'){
+        mob.value = orig.value;
+        mob.addEventListener('input', () => { orig.value = mob.value; orig.dispatchEvent(new Event('input', {bubbles:true})); });
+        mob.addEventListener('change', () => { orig.value = mob.value; orig.dispatchEvent(new Event('change', {bubbles:true})); });
+      } else if(event === 'text'){
+        mob.value = orig.value;
+        mob.addEventListener('input', () => { orig.value = mob.value; });
+        mob.addEventListener('change', () => { orig.value = mob.value; orig.dispatchEvent(new Event('change', {bubbles:true})); });
+      } else if(event === 'checkbox'){
+        mob.checked = orig.checked;
+        mob.addEventListener('change', () => { orig.checked = mob.checked; orig.dispatchEvent(new Event('change', {bubbles:true})); });
+      } else if(event === 'select'){
+        mob.value = orig.value;
+        mob.addEventListener('change', () => { orig.value = mob.value; orig.dispatchEvent(new Event('change', {bubbles:true})); });
+      }
+    };
+
+    if(tabName === 'image'){
+      // Upload button
+      const mobUp = document.getElementById('mobUploadBtn');
+      const origUp = document.getElementById('imagesInput');
+      if(mobUp && origUp) mobUp.addEventListener('click', () => origUp.click());
+      // Auth sync
+      syncMobileAuth();
+      wire('mobLoginBtn', 'loginBtn');
+      wire('mobRegisterBtn', 'registerBtn');
+      wire('mobUpgradeBtn2', 'upgradeAccountBtn');
+      wire('mobLogoutBtn2', 'logoutBtn');
+      // Sync email/password fields
+      const mobEmail = document.getElementById('mobEmail');
+      const mobPass = document.getElementById('mobPassword');
+      const origEmail = document.getElementById('authEmail');
+      const origPass = document.getElementById('authPassword');
+      if(mobEmail && origEmail){ mobEmail.addEventListener('input', () => origEmail.value = mobEmail.value); }
+      if(mobPass && origPass){ mobPass.addEventListener('input', () => origPass.value = mobPass.value); }
+    }
+
+    if(tabName === 'edit'){
+      wire('mob_presetAuto', 'presetAuto');
+      wire('mob_presetShopee', 'presetShopee');
+      wire('mob_presetDetail', 'presetDetail');
+      wire('mob_presetNatural', 'presetNatural');
+      wire('mob_presetNormal', 'presetNormal');
+      wire('mob_photoBrightness', 'photoBrightness', 'range');
+      wire('mob_photoContrast', 'photoContrast', 'range');
+      wire('mob_photoExposure', 'photoExposure', 'range');
+      wire('mob_bgCleanEnable', 'bgCleanEnable', 'checkbox');
+      wire('mob_bgAdvancedEnable', 'bgAdvancedEnable', 'checkbox');
+      wire('mob_bgStrength', 'bgStrength', 'range');
+      wire('mob_bgReset', 'bgReset');
+      wire('mob_canvasMode', 'canvasMode', 'select');
+      wire('mob_imageZoom', 'imageZoom', 'range');
+      wire('mob_centerImage', 'centerImage');
+      wire('mob_resetImageTransform', 'resetImageTransform');
+    }
+
+    if(tabName === 'elements'){
+      wire('mob_addTextBtn', 'addTextBtn');
+      wire('mob_addLogoBtn', 'addLogoBtn');
+      wire('mob_addPresetPack', 'addPresetPack');
+      wire('mob_presetText1', 'presetText1', 'text');
+      wire('mob_presetText2', 'presetText2', 'text');
+      wire('mob_presetText3', 'presetText3', 'text');
+      // Sync preset text values from desktop
+      ['mob_presetText1:presetText1','mob_presetText2:presetText2','mob_presetText3:presetText3'].forEach(pair => {
+        const [mId, oId] = pair.split(':');
+        const m = document.getElementById(mId), o = document.getElementById(oId);
+        if(m && o) m.value = o.value;
+      });
+    }
+
+    if(tabName === 'export'){
+      wire('mob_downloadCurrentBtn', 'downloadCurrentBtn');
+      wire('mob_downloadAllBtn', 'downloadAllBtn');
+      wire('mob_downloadZipBtn', 'downloadZipBtn');
+      wire('mob_productName', 'productName', 'text');
+      wire('mob_productSKU', 'productSKU', 'text');
+      // Sync product name/sku from desktop
+      const pn = document.getElementById('productName'), ps = document.getElementById('productSKU');
+      const mpn = document.getElementById('mob_productName'), mps = document.getElementById('mob_productSKU');
+      if(pn && mpn) mpn.value = pn.value;
+      if(ps && mps) mps.value = ps.value;
+      // Sync export counter
+      syncMobileExportCounter();
+    }
+
+    if(tabName === 'template'){
+      wire('mob_saveTemplate', 'saveTemplate');
+      wire('mob_loadTemplate', 'loadTemplate');
+      wire('mob_templateSlot', 'templateSlot', 'select');
+    }
+  }
+
+  function syncMobileAuth(){
+    const loggedOut = document.getElementById('mobAuthLoggedOut2');
+    const loggedIn = document.getElementById('mobAuthLoggedIn2');
+    const emailEl = document.getElementById('mobUserEmail2');
+    const planEl = document.getElementById('mobPlanBadge2');
+    if(!loggedOut || !loggedIn) return;
+    if(authUser){
+      loggedOut.style.display = 'none';
+      loggedIn.style.display = 'block';
+      if(emailEl) emailEl.textContent = authUser.email || '-';
+      if(planEl){
+        planEl.textContent = 'Plan: ' + (accountPlan||'free').toUpperCase();
+        planEl.style.borderColor = accountPlan==='pro' ? '#22c55e' : '#334155';
+        planEl.style.color = accountPlan==='pro' ? '#22c55e' : '#e5e7eb';
+      }
+    } else {
+      loggedOut.style.display = 'block';
+      loggedIn.style.display = 'none';
+    }
+  }
+
+  async function syncMobileExportCounter(){
+    const badge = document.getElementById('mob_counterBadge');
+    const fill = document.getElementById('mob_counterFill');
+    const sub = document.getElementById('mob_counterSub');
+    if(!badge) return;
+    if(isProUser()){
+      badge.textContent = 'PRO';
+      badge.style.background = '#22c55e';
+      if(sub) sub.textContent = 'Unlimited export aktif!';
+      if(fill){ fill.style.width='100%'; fill.style.background='#22c55e'; }
+      return;
+    }
+    if(!authUser){
+      badge.textContent = '0/5';
+      if(sub) sub.textContent = 'Login untuk 5 free exports/hari';
+      return;
+    }
+    const row = await getExportLimitRow();
+    const today = getTodayKey();
+    let used = 0;
+    if(row && row.last_date === today) used = Number(row.export_count||0);
+    const remaining = Math.max(0, FREE_DAILY_LIMIT - used);
+    const color = used===0?'#22c55e':used<FREE_DAILY_LIMIT?'#f59e0b':'#ef4444';
+    badge.textContent = used+'/'+FREE_DAILY_LIMIT;
+    badge.style.background = color;
+    badge.style.color = '#111827';
+    if(fill){ fill.style.width=Math.round(used/FREE_DAILY_LIMIT*100)+'%'; fill.style.background=color; }
+    if(sub) sub.textContent = used>=FREE_DAILY_LIMIT ? '⚠️ Limit habis. Upgrade Pro!' : remaining+' export tersisa hari ini.';
+  }
 
   function mobileTab(btn, tabName){
     if(!isMobile()) return;
-    // Update active tab
     document.querySelectorAll('.mob-tab').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
 
     const sheet = document.getElementById('mobileBottomSheet');
     const sheetTitle = document.getElementById('sheetTitle');
     const sheetContent = document.getElementById('sheetContent');
-    const tab = tabMap[tabName];
-    if(!tab) return;
 
-    // If same tab clicked and sheet open, close it
-    if(sheet.classList.contains('open') && sheet.dataset.currentTab === tabName){
+    // Toggle close if same tab
+    if(sheet.classList.contains('open') && currentMobileTab === tabName){
       sheet.classList.remove('open');
-      sheet.dataset.currentTab = '';
+      currentMobileTab = '';
       return;
     }
 
-    sheetTitle.textContent = tab.title;
-    sheetContent.innerHTML = '';
+    const titles = { image:'📷 Image', edit:'✏️ Photo Edit', elements:'🎨 Elements', export:'⬇️ Export', template:'📋 Template' };
+    sheetTitle.textContent = titles[tabName] || tabName;
+    sheetContent.innerHTML = getMobileTabHTML(tabName);
+    wireMobileTab(tabName);
 
-    tab.ids.forEach(id => {
-      const el = document.getElementById(id);
-      if(el){
-        const clone = el.cloneNode(true);
-        // Re-wire inputs/buttons in clone to original
-        sheetContent.appendChild(clone);
-      }
-    });
-
-    // Re-wire all interactive elements in sheet to originals
-    rewireSheet();
-
-    sheet.dataset.currentTab = tabName;
+    currentMobileTab = tabName;
     sheet.classList.add('open');
   }
 
-  function rewireSheet(){
-    const sheet = document.getElementById('sheetContent');
-    if(!sheet) return;
-
-    // All inputs, selects, textareas — sync to original
-    sheet.querySelectorAll('input,select,textarea').forEach(clone => {
-      if(!clone.id) return;
-      const orig = document.getElementById(clone.id);
-      if(!orig || clone === orig) return;
-
-      // File inputs — clicking clone triggers original directly
-      if(clone.type === 'file'){
-        clone.style.display = 'none';
-        // Create visible upload button to replace the hidden file input
-        const uploadBtn = document.createElement('button');
-        uploadBtn.type = 'button';
-        uploadBtn.style.cssText = 'width:100%;padding:14px;border-radius:12px;border:2px dashed #f59e0b;background:rgba(245,158,11,.08);color:#f59e0b;font-weight:900;font-size:15px;cursor:pointer;margin-bottom:8px';
-        uploadBtn.innerHTML = '📁 Pilih / Upload Foto Produk';
-        uploadBtn.addEventListener('click', () => orig.click());
-        clone.parentNode.insertBefore(uploadBtn, clone);
-        return;
-      }
-
-      // Sync value from original
-      if(clone.type === 'checkbox') clone.checked = orig.checked;
-      else clone.value = orig.value;
-
-      // Forward events to original
-      ['input','change','keydown','blur'].forEach(ev => {
-        clone.addEventListener(ev, e => {
-          if(clone.type === 'checkbox') orig.checked = clone.checked;
-          else orig.value = clone.value;
-          orig.dispatchEvent(new Event(ev, {bubbles:true}));
-        });
-      });
-    });
-
-    // All buttons — forward click to original
-    sheet.querySelectorAll('button').forEach(clone => {
-      if(!clone.id) return;
-      const orig = document.getElementById(clone.id);
-      if(!orig || clone === orig) return;
-      clone.addEventListener('click', () => orig.click());
-    });
-  }
-
-  // Add card IDs to desktop panels for tab mapping
-  function assignCardIds(){
-    const left = document.querySelector('.panel.left');
-    if(!left) return;
-    const cards = left.querySelectorAll('.card');
-    const mapping = [
-      {el: document.getElementById('authCard'), id: 'authCard'},
-    ];
-
-    // Assign IDs to unnamed cards by order
-    let cardNames = ['authCard','imagesCard','photoEditCard','elementsCard','templateCard','exportNameCard','historyExportCard'];
-    cards.forEach((card, i) => {
-      if(!card.id && cardNames[i]) card.id = cardNames[i];
-    });
-
-    // Element properties is in right panel
-    const rightCard = document.querySelector('.panel.right .card');
-    if(rightCard && !rightCard.id) rightCard.id = 'elementPropsCard';
-  }
-
-  // Mobile download button
+  // Mobile header buttons
   document.addEventListener('DOMContentLoaded', () => {
-    assignCardIds();
-
     const mobDl = document.getElementById('mobileDownloadBtn');
-    if(mobDl) mobDl.addEventListener('click', () => {
-      const orig = document.getElementById('downloadCurrentBtn');
-      if(orig) orig.click();
-    });
-
+    if(mobDl) mobDl.addEventListener('click', () => document.getElementById('downloadCurrentBtn')?.click());
     const mobUndo = document.getElementById('mobileUndoBtn');
-    if(mobUndo) mobUndo.addEventListener('click', () => {
-      const orig = document.getElementById('undoBtn');
-      if(orig) orig.click();
-    });
-
+    if(mobUndo) mobUndo.addEventListener('click', () => document.getElementById('undoBtn')?.click());
     const mobRedo = document.getElementById('mobileRedoBtn');
-    if(mobRedo) mobRedo.addEventListener('click', () => {
-      const orig = document.getElementById('redoBtn');
-      if(orig) orig.click();
-    });
+    if(mobRedo) mobRedo.addEventListener('click', () => document.getElementById('redoBtn')?.click());
   });
 
-  // Close sheet when tapping canvas
+  // Close sheet on canvas tap
   document.addEventListener('click', e => {
     if(!isMobile()) return;
     const sheet = document.getElementById('mobileBottomSheet');
-    if(!sheet) return;
-    const stage = document.querySelector('.workspace');
-    if(stage && stage.contains(e.target)){
+    if(!sheet || !sheet.classList.contains('open')) return;
+    if(e.target.closest('#mobileBottomSheet') || e.target.closest('#mobileTabBar')) return;
+    const workspace = document.querySelector('.workspace');
+    if(workspace && workspace.contains(e.target)){
       sheet.classList.remove('open');
+      currentMobileTab = '';
       document.querySelectorAll('.mob-tab').forEach(b => b.classList.remove('active'));
     }
   });
 
-  // Swipe down to close sheet
-  (function(){
+  // Swipe down to close
+  (()=>{
     let startY = 0;
     const sheet = document.getElementById('mobileBottomSheet');
     if(!sheet) return;
     sheet.addEventListener('touchstart', e => { startY = e.touches[0].clientY; }, {passive:true});
     sheet.addEventListener('touchend', e => {
-      const dy = e.changedTouches[0].clientY - startY;
-      if(dy > 60) {
+      if(e.changedTouches[0].clientY - startY > 60){
         sheet.classList.remove('open');
+        currentMobileTab = '';
         document.querySelectorAll('.mob-tab').forEach(b => b.classList.remove('active'));
       }
     }, {passive:true});
