@@ -1332,7 +1332,31 @@
   }
   function applyBaseImageLayout(img){ensurePhotoAdjust(img);ensureImageTransform(img);ensureBgCleanup(img);const nw=el.baseImage.naturalWidth||800,nh=el.baseImage.naturalHeight||800,maxW=1100,maxH=Math.max(420,window.innerHeight*.72);let cw,ch,baseScale;if(img.transform.mode==='square'){const s=Math.min(maxW,maxH);cw=s;ch=s;baseScale=Math.min(cw/nw,ch/nh)}else{baseScale=Math.min(maxW/nw,maxH/nh,1);cw=Math.round(nw*baseScale);ch=Math.round(nh*baseScale)}const zoom=img.transform.zoom/100,iw=nw*baseScale*zoom,ih=nh*baseScale*zoom;el.stageInner.style.width=cw+'px';el.stageInner.style.height=ch+'px';el.baseImage.style.display='block';el.baseImage.style.width=iw+'px';el.baseImage.style.height=ih+'px';el.baseImage.style.left=(img.transform.x/100*cw-iw/2)+'px';el.baseImage.style.top=(img.transform.y/100*ch-ih/2)+'px';el.baseImage.style.filter=photoFilter(img);updateEdgePreview(img)}
   function refreshStage(){const img=currentImage();if(!img)return;applyBaseImageLayout(img);syncPhotoControls();el.stageInner.querySelectorAll('.overlay').forEach(n=>n.remove());img.items.forEach(addOverlay);syncPanel()}
-  function renderImage(index){state.currentIndex=index;renderThumbs();const img=currentImage();if(!img){clearStage();syncPanel();return}ensurePhotoAdjust(img);ensureImageTransform(img);el.emptyState.style.display='none';el.baseImage.onload=()=>refreshStage();if(el.baseImage.src!==img.src)el.baseImage.src=img.src;else refreshStage()}
+  let mobileHintShown = false;
+  function showMobileHint(){
+    if(!isMobile() || mobileHintShown) return;
+    mobileHintShown = true;
+    let hint = document.getElementById('mobileCanvasHint');
+    if(!hint){
+      hint = document.createElement('div');
+      hint.id = 'mobileCanvasHint';
+      hint.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.82);color:#fff;border-radius:14px;padding:12px 16px;font-size:12px;z-index:500;pointer-events:none;text-align:center;line-height:1.7;max-width:280px;border:1px solid #334155';
+      hint.innerHTML = `
+        <div style="font-size:18px;margin-bottom:4px">💡 Tips Kontrol Gambar</div>
+        <div>👆👆 <b>Double tap</b> canvas → unlock geser</div>
+        <div>✌️ <b>Pinch</b> 2 jari → zoom in/out</div>
+        <div>☝️ <b>Drag</b> element → pindah posisi</div>
+        <div style="margin-top:6px;color:#f59e0b;font-size:11px">Tap canvas untuk tutup hint ini</div>
+      `;
+      document.body.appendChild(hint);
+      // Auto hide after 5s
+      setTimeout(() => { if(hint) hint.style.display='none'; }, 5000);
+      // Hide on tap
+      hint.addEventListener('click', () => hint.style.display='none');
+    }
+    hint.style.display = 'block';
+  }
+  function renderImage(index){state.currentIndex=index;renderThumbs();const img=currentImage();if(!img){clearStage();syncPanel();return}ensurePhotoAdjust(img);ensureImageTransform(img);el.emptyState.style.display='none';el.baseImage.onload=()=>{refreshStage();showMobileHint();};if(el.baseImage.src!==img.src)el.baseImage.src=img.src;else{refreshStage();showMobileHint();};}
   function selectedItem(){return currentImage()?.items.find(it=>it.id===state.selectedId)}
   function sameGroup(a,b){return !!a&&!!b&&a.group===b.group&&a.type===b.type}
   function syncPanel(){const o=selectedItem();if(!o){el.noSelection.classList.remove('hidden');el.textControls.classList.add('hidden');el.logoControls.classList.add('hidden');el.lockElement.textContent='Lock Element';return}el.lockElement.textContent=o.locked?'Unlock Element':'Lock Element';el.noSelection.classList.add('hidden');if(o.type==='text'){el.textControls.classList.remove('hidden');el.logoControls.classList.add('hidden');el.textContent.value=o.text;el.fontFamily.value=o.fontFamily;if(document.activeElement!==el.fontSize)el.fontSize.value=o.fontSize;el.textAlign.value=o.align;el.strokeWidth.value=o.strokeWidth;el.textColor.value=o.color;el.strokeColor.value=o.strokeColor;el.gradientEnabled.checked=!!o.gradientEnabled;el.gradientColor1.value=o.gradientColor1||'#fff';el.gradientColor2.value=o.gradientColor2||'#f59e0b';el.gradientColor3.value=o.gradientColor3||'#ff5a00';el.gradientDirection.value=o.gradientDirection||'horizontal';el.shadowColor.value=o.shadowColor;el.shadowBlur.value=o.shadowBlur;el.rotate.value=o.rotate;el.opacity.value=o.opacity}else{el.textControls.classList.add('hidden');el.logoControls.classList.remove('hidden');el.logoRotate.value=o.rotate;el.logoOpacity.value=o.opacity}}
@@ -1538,7 +1562,38 @@
     e.preventDefault();
   }, { passive:false });
 
+  // Pinch-to-zoom state
+  let pinchStartDist = 0;
+  let pinchStartZoom = 100;
+  let isPinching = false;
+
+  function getPinchDist(e){
+    return Math.hypot(
+      e.touches[0].clientX - e.touches[1].clientX,
+      e.touches[0].clientY - e.touches[1].clientY
+    );
+  }
+
   window.addEventListener('touchmove', e => {
+    // Pinch to zoom — 2 fingers on canvas
+    if(e.touches.length === 2 && e.target.closest('#stageInner')){
+      isPinching = true;
+      state.action = null; // cancel any drag
+      const dist = getPinchDist(e);
+      if(pinchStartDist === 0){ pinchStartDist = dist; pinchStartZoom = currentImage()?.transform?.zoom || 100; }
+      const newZoom = clamp(Math.round(pinchStartZoom * (dist / pinchStartDist)), 30, 250);
+      const img = currentImage();
+      if(img){
+        ensureImageTransform(img);
+        state.images.forEach(i => { ensureImageTransform(i); i.transform.zoom = newZoom; });
+        // Sync desktop slider too
+        if(el.imageZoom){ el.imageZoom.value = newZoom; el.imageZoomVal.textContent = newZoom+'%'; }
+        refreshStage();
+      }
+      e.preventDefault();
+      return;
+    }
+
     if(!state.action) return;
     const touch = getTouchPos(e);
     const dx = touch.clientX - state.action.startX;
@@ -1574,7 +1629,7 @@
           if(h==='ml'||h==='mr') o.boxWidth = Math.max(30, state.action.originBoxWidth+(h==='ml'?-dx:dx)/sf);
           if(h==='mt'||h==='mb') o.boxHeight = Math.max(20, state.action.originBoxHeight+(h==='mt'?-dy:dy)/sf);
         } else if(['tl','tr','bl','br'].includes(h)){
-          const node = el.stageInner.querySelector(`.overlay[data-id="${active.id}"]`);
+          const node = el.stageInner.querySelector(\`\${'.overlay'}[data-id="\${active.id}"]\`);
           if(!node) return;
           const r = node.getBoundingClientRect();
           const cx = r.left+r.width/2, cy = r.top+r.height/2;
@@ -1583,7 +1638,7 @@
           o.scale = clamp(state.action.originScale*(d2/(d1||1)), 5, 1000);
         }
       } else if(state.action.mode === 'rotate'){
-        const node = el.stageInner.querySelector(`.overlay[data-id="${active.id}"]`);
+        const node = el.stageInner.querySelector(\`\${'.overlay'}[data-id="\${active.id}"]\`);
         if(!node) return;
         const r = node.getBoundingClientRect();
         const cx = r.left+r.width/2, cy = r.top+r.height/2;
@@ -1599,6 +1654,7 @@
   }, { passive:false });
 
   window.addEventListener('touchend', e => {
+    if(e.touches.length < 2){ pinchStartDist = 0; isPinching = false; }
     if(state.action){ save(); state.action=null; renderImage(state.currentIndex); }
   }, { passive:true });
   window.addEventListener('keydown',e=>{const tag=document.activeElement?.tagName?.toLowerCase(),typing=tag==='input'||tag==='textarea'||tag==='select';if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();undo();return}if(!typing&&(e.key==='Delete'||e.key==='Backspace')){if(state.selectedId){e.preventDefault();deleteSelected();return}if(state.images.length){e.preventDefault();save();state.images.splice(state.currentIndex,1);if(state.currentIndex>=state.images.length)state.currentIndex=Math.max(0,state.images.length-1);state.selectedId=null;state.selectedType=null;el.imgCount.textContent=state.images.length;if(state.images.length){renderThumbs();renderImage(state.currentIndex)}else{renderThumbs();clearStage();el.imagesInput.value=''}el.statusText.textContent='Image deleted.'}}});
