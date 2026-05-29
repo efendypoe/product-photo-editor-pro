@@ -1778,7 +1778,7 @@
     div.style.cssText = 'position:fixed;inset:0;background:transparent;z-index:99999;pointer-events:none';
 
     div.innerHTML = `
-      <div style="position:absolute;bottom:72px;left:8px;right:8px;background:rgba(11,18,32,.97);backdrop-filter:blur(16px);border-radius:18px;border:1px solid #f59e0b;padding:10px 14px 14px;pointer-events:auto;box-shadow:0 8px 32px rgba(0,0,0,.6)">
+      <div style="position:absolute;bottom:72px;left:8px;right:8px;background:rgba(11,18,32,.97);backdrop-filter:blur(16px);border-radius:18px;border:1px solid #f59e0b;padding:10px 14px 14px;max-height:32vh;overflow-y:auto;pointer-events:auto;box-shadow:0 8px 32px rgba(0,0,0,.6)">
 
         <!-- Header -->
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
@@ -1791,26 +1791,25 @@
         </div>
 
         <!-- ROTATE -->
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
           <span style="font-size:11px;color:#94a3b8;font-weight:700;width:52px;flex-shrink:0">ROTATE</span>
           <input id="mobLogoRotate" type="range" min="-180" max="180" value="${Math.round(o.rotate||0)}"
-            style="flex:1;accent-color:#f59e0b;cursor:pointer;touch-action:none">
+            style="flex:1;accent-color:#f59e0b;cursor:pointer;height:28px">
           <span id="mobLogoRotateVal" style="font-size:12px;font-weight:900;color:#f59e0b;width:38px;text-align:right;flex-shrink:0">${Math.round(o.rotate||0)}°</span>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-bottom:10px">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-bottom:8px">
           <button id="mobLogoRot0"   style="background:#0b1220;color:#e5e7eb;border:1px solid #1e293b;border-radius:7px;padding:6px;font-size:11px;cursor:pointer">0°</button>
           <button id="mobLogoRot90"  style="background:#0b1220;color:#e5e7eb;border:1px solid #1e293b;border-radius:7px;padding:6px;font-size:11px;cursor:pointer">90°</button>
           <button id="mobLogoRot180" style="background:#0b1220;color:#e5e7eb;border:1px solid #1e293b;border-radius:7px;padding:6px;font-size:11px;cursor:pointer">180°</button>
         </div>
 
-        <!-- OPACITY -->
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
           <span style="font-size:11px;color:#94a3b8;font-weight:700;width:52px;flex-shrink:0">OPACITY</span>
           <input id="mobLogoOpacity" type="range" min="5" max="100" value="${o.opacity||60}"
-            style="flex:1;accent-color:#f59e0b;cursor:pointer;touch-action:none">
+            style="flex:1;accent-color:#f59e0b;cursor:pointer;height:28px">
           <span id="mobLogoOpacityVal" style="font-size:12px;font-weight:900;color:#f59e0b;width:38px;text-align:right;flex-shrink:0">${o.opacity||60}%</span>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:5px;margin-bottom:10px">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:5px;margin-bottom:8px">
           <button id="mobLogoOp25"  style="background:#0b1220;color:#e5e7eb;border:1px solid #1e293b;border-radius:7px;padding:6px;font-size:11px;cursor:pointer">25%</button>
           <button id="mobLogoOp50"  style="background:#0b1220;color:#e5e7eb;border:1px solid #1e293b;border-radius:7px;padding:6px;font-size:11px;cursor:pointer">50%</button>
           <button id="mobLogoOp75"  style="background:#0b1220;color:#e5e7eb;border:1px solid #1e293b;border-radius:7px;padding:6px;font-size:11px;cursor:pointer">75%</button>
@@ -1833,16 +1832,16 @@
 
     const g = id => document.getElementById(id);
 
-    // Live preview — update overlay directly (smooth, no full re-render lag)
+    // Live preview — directly mutate overlay CSS, zero re-render lag
     function applyLogoPreviewFast(){
       const rot = parseFloat(g('mobLogoRotate')?.value) || 0;
       const opa = parseInt(g('mobLogoOpacity')?.value) || 60;
-      // Update state
+      // Update state silently
       state.images.forEach(img => {
         const it = img.items.find(x => x.group === o.group && x.type === 'logo');
         if(it){ it.rotate = rot; it.opacity = opa; }
       });
-      // Update overlay directly — no canvas re-render needed for rotate/opacity
+      // Direct DOM update — no canvas redraw
       const node = el.stageInner.querySelector('.overlay[data-id="' + o.id + '"]');
       if(node){
         node.style.opacity = opa / 100;
@@ -1850,22 +1849,34 @@
       }
     }
 
-    // Rotate slider — smooth with requestAnimationFrame
-    let rafRot = null;
-    g('mobLogoRotate').addEventListener('input', () => {
-      const val = Math.round(parseFloat(g('mobLogoRotate').value));
-      g('mobLogoRotateVal').textContent = val + '°';
-      if(rafRot) cancelAnimationFrame(rafRot);
-      rafRot = requestAnimationFrame(applyLogoPreviewFast);
-    });
+    // Use pointermove for smooth drag — better than input event on mobile
+    function makeSliderSmooth(sliderId, labelId, suffix, onChange){
+      const slider = g(sliderId);
+      const label = g(labelId);
+      if(!slider) return;
+      // Standard input event (desktop + some mobile)
+      slider.addEventListener('input', () => {
+        if(label) label.textContent = Math.round(parseFloat(slider.value)) + suffix;
+        onChange();
+      });
+      // Touch events for ultra-smooth mobile drag
+      slider.addEventListener('touchstart', e => { e.stopPropagation(); }, {passive:true});
+      slider.addEventListener('touchmove', e => {
+        e.stopPropagation();
+        const touch = e.touches[0];
+        const rect = slider.getBoundingClientRect();
+        const pct = Math.max(0, Math.min(1, (touch.clientX - rect.left) / rect.width));
+        const min = parseFloat(slider.min);
+        const max = parseFloat(slider.max);
+        const val = Math.round(min + pct * (max - min));
+        slider.value = val;
+        if(label) label.textContent = val + suffix;
+        onChange();
+      }, {passive:true});
+    }
 
-    // Opacity slider — smooth with requestAnimationFrame
-    let rafOpa = null;
-    g('mobLogoOpacity').addEventListener('input', () => {
-      g('mobLogoOpacityVal').textContent = g('mobLogoOpacity').value + '%';
-      if(rafOpa) cancelAnimationFrame(rafOpa);
-      rafOpa = requestAnimationFrame(applyLogoPreviewFast);
-    });
+    makeSliderSmooth('mobLogoRotate', 'mobLogoRotateVal', '°', applyLogoPreviewFast);
+    makeSliderSmooth('mobLogoOpacity', 'mobLogoOpacityVal', '%', applyLogoPreviewFast);
 
     // Rotate presets
     const setRot = val => {
