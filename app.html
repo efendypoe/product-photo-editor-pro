@@ -206,6 +206,51 @@
     .mob-tab .tab-icon { font-size:20px; line-height:1; }
     .mob-tab.active { color:var(--accent); background:rgba(245,158,11,.1); }
 
+
+    /* ===== TOAST NOTIFICATION ===== */
+    #toastContainer {
+      position: fixed;
+      top: 70px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 99999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      pointer-events: none;
+      width: 90%;
+      max-width: 360px;
+    }
+    .toast {
+      width: 100%;
+      padding: 12px 16px;
+      border-radius: 14px;
+      font-size: 13px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 8px 24px rgba(0,0,0,.4);
+      animation: toastIn .25s cubic-bezier(.4,0,.2,1);
+      pointer-events: auto;
+      border: 1px solid transparent;
+    }
+    .toast.success { background:#052e14; border-color:#22c55e; color:#86efac; }
+    .toast.error   { background:#1c0a0a; border-color:#ef4444; color:#fca5a5; }
+    .toast.info    { background:#0c1a2e; border-color:#3b82f6; color:#93c5fd; }
+    .toast.warning { background:#1c1000; border-color:#f59e0b; color:#fcd34d; }
+    .toast-icon { font-size:18px; flex-shrink:0; }
+    .toast-msg  { flex:1; line-height:1.4; }
+    @keyframes toastIn {
+      from { opacity:0; transform:translateY(-12px) scale(.95); }
+      to   { opacity:1; transform:translateY(0) scale(1); }
+    }
+    @keyframes toastOut {
+      from { opacity:1; transform:translateY(0) scale(1); }
+      to   { opacity:0; transform:translateY(-8px) scale(.95); }
+    }
+
   </style>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -214,6 +259,7 @@
 <body>
 
 <!-- MOBILE HEADER -->
+<div id="toastContainer"></div>
 <div id="mobileHeader">
   <h1>📷 Product Photo Editor Pro</h1>
   <div id="mobileHeaderRight">
@@ -720,7 +766,7 @@
     const { error } = await supabaseClient.auth.resetPasswordForEmail(email, { redirectTo });
     if(error) return alert(error.message);
 
-    alert('Link reset password sudah dikirim ke email. Cek Inbox/Spam.');
+    showToast('Link reset password sudah dikirim! Cek Inbox/Spam email kamu.', 'success', 5000);
     setAuthStatus('Reset password email sent.');
   }
 
@@ -739,7 +785,7 @@
     await supabaseClient.auth.signOut();
     authUser = null;
     updateAuthUI();
-    alert('Password berhasil diubah. Silakan login ulang dengan password baru.');
+    showToast('Password berhasil diubah! Silakan login ulang.', 'success', 5000);
     setAuthStatus('Password updated successfully. Please login again.');
   }
 
@@ -902,7 +948,7 @@
       updateAuthUI();
       setAuthStatus('Register success. Please verify email and login.');
 
-      alert('Register berhasil.\n\nSilakan cek email untuk verifikasi akun, lalu login kembali.');
+      showToast('Register berhasil! Cek email untuk verifikasi akun, lalu login.', 'success', 6000);
     } catch(err){
       console.error(err);
       setAuthStatus('Register error.');
@@ -1077,7 +1123,7 @@
       return;
     }
     if(isProUser()){
-      alert('Akun kamu sudah PRO aktif.');
+      showToast('Akun kamu sudah PRO aktif! Nikmati unlimited export.', 'success');
       return;
     }
 
@@ -1139,7 +1185,7 @@
       updateAuthUI();
 
       if(isProUser()){
-        alert('Akun kamu sudah PRO aktif.');
+        showToast('Akun kamu sudah PRO aktif! Nikmati unlimited export.', 'success');
         return;
       }
 
@@ -2544,6 +2590,44 @@
       }
     }, {passive:true});
   })();
+
+
+  // ===== TOAST NOTIFICATION SYSTEM =====
+  function showToast(msg, type='info', duration=3500){
+    const icons = { success:'✅', error:'❌', info:'ℹ️', warning:'⚠️' };
+    const container = document.getElementById('toastContainer');
+    if(!container) return;
+
+    const toast = document.createElement('div');
+    toast.className = 'toast ' + type;
+    toast.innerHTML = `<span class="toast-icon">${icons[type]||'ℹ️'}</span><span class="toast-msg">${msg}</span>`;
+    container.appendChild(toast);
+
+    // Click to dismiss
+    toast.addEventListener('click', () => removeToast(toast));
+
+    // Auto remove
+    setTimeout(() => removeToast(toast), duration);
+  }
+
+  function removeToast(toast){
+    if(!toast.parentNode) return;
+    toast.style.animation = 'toastOut .2s ease forwards';
+    setTimeout(() => toast.remove(), 200);
+  }
+
+  // Override window.alert with toast on mobile
+  const _nativeAlert = window.alert.bind(window);
+  window.alert = function(msg){
+    if(!msg) return;
+    const m = String(msg);
+    // Detect type from message content
+    let type = 'info';
+    if(/error|gagal|invalid|salah|wrong|failed|minimal|harus|dulu|belum|tidak bisa/i.test(m)) type = 'error';
+    else if(/berhasil|sukses|success|sent|dikirim|changed|aktif|selamat/i.test(m)) type = 'success';
+    else if(/warning|perhatian|pastikan/i.test(m)) type = 'warning';
+    showToast(m, type, type==='error' ? 5000 : 3500);
+  };
 
   // Expose to global scope (needed for onclick in HTML)
   window.mobileTab = mobileTab;
