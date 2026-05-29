@@ -154,7 +154,7 @@
       background:rgba(17,24,39,.98);
       border-top:1px solid var(--line);
       border-radius:20px 20px 0 0;
-      max-height:60vh;
+      max-height:32vh;
       overflow-y:auto;
       transform:translateY(100%);
       transition:transform .3s cubic-bezier(.4,0,.2,1);
@@ -1759,6 +1759,12 @@
     const old = document.getElementById('mobileTextEditModal');
     if(old) old.remove();
 
+    // Close bottom sheet so canvas is fully visible
+    const bs = document.getElementById('mobileBottomSheet');
+    if(bs) bs.classList.remove('open');
+    document.querySelectorAll('.mob-tab').forEach(b => b.classList.remove('active'));
+    window.currentMobileTab = '';
+
     const div = document.createElement('div');
     div.id = 'mobileTextEditModal';
     div.style.cssText = 'position:fixed;inset:0;background:transparent;z-index:99999;pointer-events:none';
@@ -1767,7 +1773,7 @@
     const COL = 'width:100%;height:30px;background:#0b1220;border:1px solid #1e293b;border-radius:7px;padding:1px;cursor:pointer;margin-top:2px';
     const LBL = 'font-size:10px;color:#64748b;display:block';
     div.innerHTML = `
-      <div id="mobEditFloatPanel" style="position:absolute;bottom:72px;left:8px;right:8px;background:rgba(11,18,32,.97);backdrop-filter:blur(16px);border-radius:18px;border:1px solid #f59e0b;padding:10px 12px 14px;max-height:42vh;overflow-y:auto;pointer-events:auto;box-shadow:0 8px 32px rgba(0,0,0,.6)">
+      <div id="mobEditFloatPanel" style="position:absolute;bottom:72px;left:8px;right:8px;background:rgba(11,18,32,.97);backdrop-filter:blur(16px);border-radius:18px;border:1px solid #f59e0b;padding:10px 12px 14px;max-height:32vh;overflow-y:auto;pointer-events:auto;box-shadow:0 8px 32px rgba(0,0,0,.6)">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
           <span style="font-size:13px;font-weight:900;color:#f59e0b">✏️ Edit Text</span>
           <div style="display:flex;gap:8px">
@@ -2775,8 +2781,19 @@
     showToast(m, type, type==='error' ? 5000 : 3500);
   };
 
+  // Dim canvas slightly when bottom sheet open for focus
+  const origMobileTab = mobileTab;
+  window.mobileTab = function(btn, tabName){
+    origMobileTab(btn, tabName);
+    const canvas = document.querySelector('.center');
+    if(canvas){
+      const sheet = document.getElementById('mobileBottomSheet');
+      canvas.style.opacity = sheet && sheet.classList.contains('open') ? '0.7' : '1';
+    }
+  };
+
   // Expose to global scope (needed for onclick in HTML)
-  window.mobileTab = mobileTab;
+  window.mobileTab = window.mobileTab;
 
 })();
 </script>
