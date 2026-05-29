@@ -3,7 +3,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Product Photo Editor Pro</title>
   <link rel="icon" type="image/png" href="/logo.png">
   <style>
@@ -102,6 +102,7 @@
       }
 
       body { padding-bottom: 130px; }
+      #stageInner, .workspace { touch-action: none !important; }
     }
 
     /* Mobile-only elements — hidden on desktop */
@@ -1826,7 +1827,10 @@
 
   window.addEventListener('touchmove', e => {
     // Pinch to zoom — 2 fingers on canvas
-    if(e.touches.length === 2 && e.target.closest('#stageInner') && imageMoveUnlocked){
+    // Block ALL pinch on canvas regardless of lock state (we handle zoom ourselves)
+    if(e.touches.length === 2 && e.target.closest('#stageInner')){
+      e.preventDefault(); // Always prevent browser native zoom on canvas
+      if(!imageMoveUnlocked){ pinchStartDist = 0; return; } // locked = no zoom
       isPinching = true;
       state.action = null; // cancel any drag
       const dist = getPinchDist(e);
