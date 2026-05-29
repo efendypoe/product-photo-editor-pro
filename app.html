@@ -1269,7 +1269,35 @@
   function downloadBlob(blob,filename){const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500)}
   const wait=ms=>new Promise(r=>setTimeout(r,ms));
   function clearStage(){el.baseImage.style.display='none';el.baseImage.src='';el.emptyState.style.display='block';el.stageInner.querySelectorAll('.overlay').forEach(n=>n.remove())}
-  function renderThumbs(){el.thumbs.innerHTML='';state.images.forEach((img,idx)=>{const d=document.createElement('div');d.className='thumb'+(idx===state.currentIndex?' active':'');d.innerHTML=`<img src="${img.src}"><div class="name">${escapeHtml(img.name)}</div>`;d.addEventListener('click',()=>{state.selectedId=null;state.selectedType=null;renderImage(idx)});el.thumbs.appendChild(d)})}
+  function deleteImageAt(idx){
+    save();
+    state.images.splice(idx,1);
+    if(state.currentIndex>=state.images.length) state.currentIndex=Math.max(0,state.images.length-1);
+    state.selectedId=null; state.selectedType=null;
+    el.imgCount.textContent=state.images.length;
+    if(state.images.length){ renderThumbs(); renderImage(state.currentIndex); }
+    else { renderThumbs(); clearStage(); el.imagesInput.value=''; }
+    el.statusText.textContent='Image deleted.';
+  }
+  function renderThumbs(){
+    el.thumbs.innerHTML='';
+    state.images.forEach((img,idx)=>{
+      const d=document.createElement('div');
+      d.className='thumb'+(idx===state.currentIndex?' active':'');
+      d.style.position='relative';
+      d.innerHTML=`<img src="${img.src}"><div class="name">${escapeHtml(img.name)}</div>`;
+      // Delete button (visible on mobile, subtle on desktop)
+      const del=document.createElement('button');
+      del.type='button';
+      del.innerHTML='✕';
+      del.title='Delete image';
+      del.style.cssText='position:absolute;top:2px;right:2px;width:18px;height:18px;border-radius:50%;background:#ef4444;color:#fff;border:0;font-size:10px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;padding:0;z-index:10';
+      del.addEventListener('click', e=>{ e.stopPropagation(); if(state.images.length>1||confirm('Hapus semua gambar?')) deleteImageAt(idx); });
+      d.appendChild(del);
+      d.addEventListener('click',()=>{state.selectedId=null;state.selectedType=null;renderImage(idx)});
+      el.thumbs.appendChild(d);
+    });
+  }
   function minTextBox(o){const c=document.createElement('canvas'),ctx=c.getContext('2d');ctx.font=`${o.fontSize}px ${o.fontFamily}`;const lines=String(o.text||' ').split('\n');const widths=lines.map(line=>ctx.measureText(line).width);return{w:Math.max(20,Math.ceil(Math.max(...widths,0)))+12,h:Math.max(20,Math.ceil(lines.length*o.fontSize*1.1))+12}}
   function ensureTextBox(o){if(!o.boxWidth||!o.boxHeight){const m=minTextBox(o);o.boxWidth=o.boxWidth||m.w;o.boxHeight=o.boxHeight||m.h}}
   function buildBBox(){const box=document.createElement('div');box.className='bbox';['tl','tr','bl','br','ml','mr','mt','mb'].forEach(p=>{const h=document.createElement('div');h.className='handle '+p;h.dataset.handle=p;box.appendChild(h)});const line=document.createElement('div');line.className='handle rotate-line';box.appendChild(line);const r=document.createElement('div');r.className='handle rotate';r.dataset.handle='rotate';box.appendChild(r);return box}
