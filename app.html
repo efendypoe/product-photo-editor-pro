@@ -121,7 +121,21 @@
 
     <div class="card"><h2>Template</h2><label>Template Slot</label><select id="templateSlot"><option value="1">Template 1</option><option value="2">Template 2</option><option value="3">Template 3</option><option value="4">Template 4</option><option value="5">Template 5</option></select><div class="btns" style="margin-top:10px"><button id="saveTemplate" type="button">Save Template</button><button id="loadTemplate" type="button" class="ghost">Load Template</button></div></div>
     <div class="card"><h2>Export Name</h2><label>Product Name</label><input id="productName" type="text" placeholder="BLOK SEHER BEAT FI"><label style="margin-top:8px">SKU / Code</label><input id="productSKU" type="text" placeholder="K1A / 5TP / 3C1"><div class="mini" style="margin-top:8px">Export format: SKU - Product Name.jpg</div></div>
-    <div class="card"><h2>History & Export</h2><div class="btns"><button id="undoBtn" type="button" class="ghost">Undo</button><button id="redoBtn" type="button" class="ghost">Redo</button></div><div class="btns" style="margin-top:10px"><button id="downloadCurrentBtn" type="button">Download Image</button><button id="downloadAllBtn" type="button" class="green">Download All</button></div><div class="btns" style="margin-top:10px"><button id="downloadZipBtn" type="button" class="ghost">Download ZIP</button><button type="button" class="ghost" disabled style="visibility:hidden">.</button></div><div class="mini" id="statusText" style="margin-top:10px">No process yet.</div></div>
+    <div class="card"><h2>History & Export</h2><div class="btns"><button id="undoBtn" type="button" class="ghost">Undo</button><button id="redoBtn" type="button" class="ghost">Redo</button></div>
+
+      <!-- EXPORT COUNTER BAR -->
+      <div id="exportCounterBar" style="margin:12px 0 4px;border-radius:12px;padding:10px 12px;background:#0b1220;border:1px solid #334155;display:none">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <span id="exportCounterLabel" style="font-size:12px;font-weight:700;color:#e5e7eb">Daily Export</span>
+          <span id="exportCounterBadge" style="font-size:11px;font-weight:900;padding:3px 8px;border-radius:999px;background:#334155;color:#e5e7eb">0/5</span>
+        </div>
+        <div style="background:#1f2937;border-radius:999px;height:6px;overflow:hidden">
+          <div id="exportCounterFill" style="height:100%;border-radius:999px;background:#22c55e;width:0%;transition:width .4s ease"></div>
+        </div>
+        <div id="exportCounterSub" style="font-size:11px;color:#94a3b8;margin-top:6px">Upgrade Pro for unlimited export.</div>
+      </div>
+
+      <div class="btns" style="margin-top:10px"><button id="downloadCurrentBtn" type="button">Download Image</button><button id="downloadAllBtn" type="button" class="green">Download All</button></div><div class="btns" style="margin-top:10px"><button id="downloadZipBtn" type="button" class="ghost">Download ZIP</button><button type="button" class="ghost" disabled style="visibility:hidden">.</button></div><div class="mini" id="statusText" style="margin-top:10px">No process yet.</div></div>
   </aside>
 
   <main class="center"><div class="card" style="display:flex;flex-direction:column;flex:1"><h2>Preview</h2><div class="sub">Drag image empty area = move product. Drag element body = move element. Corner handles = scale.</div><div class="workspace"><div class="stage"><div id="emptyState">Upload images first.</div><div id="stageInner" class="stage-inner"><img id="baseImage" alt="preview"></div></div></div></div><div class="card"><h2>Image List</h2><div id="thumbs" class="thumbs"></div></div></main>
@@ -743,21 +757,64 @@
     return data;
   }
 
+  function renderCounterBar(used, total, badge, badgeBg, badgeColor, barColor, borderColor, sub, subColor){
+    const bar = document.getElementById('exportCounterBar');
+    const badgeEl = document.getElementById('exportCounterBadge');
+    const fillEl = document.getElementById('exportCounterFill');
+    const subEl = document.getElementById('exportCounterSub');
+    if(!bar) return;
+    bar.style.display = 'block';
+    bar.style.borderColor = borderColor || '#334155';
+    if(badgeEl){ badgeEl.textContent = badge||(used+'/'+total); badgeEl.style.background = badgeBg||'#334155'; badgeEl.style.color = badgeColor||'#e5e7eb'; }
+    if(fillEl){ fillEl.style.width = Math.min(100, Math.round(used/total*100))+'%'; fillEl.style.background = barColor||'#22c55e'; }
+    if(subEl){ subEl.textContent = sub||''; subEl.style.color = subColor||'#94a3b8'; }
+  }
+
   async function updateExportLimitText(){
-    if(!el || !el.statusText) return;
+    const statusEl = document.getElementById('statusText');
+
+    // PRO user — hide bar
     if(isProUser()){
-      el.statusText.textContent = 'PRO active: unlimited export.';
+      if(statusEl) statusEl.textContent = 'PRO active: unlimited export.';
+      const bar = document.getElementById('exportCounterBar');
+      if(bar) bar.style.display = 'none';
       return;
     }
+
+    // Not logged in — show teaser bar
     if(!authUser){
-      el.statusText.textContent = 'Login required for export.';
+      if(statusEl) statusEl.textContent = 'Login required for export.';
+      renderCounterBar(0, FREE_DAILY_LIMIT,
+        '0/'+FREE_DAILY_LIMIT, '#334155', '#94a3b8',
+        '#334155', '#334155',
+        '🔒 Login to get '+FREE_DAILY_LIMIT+' free exports per day.', '#94a3b8'
+      );
       return;
     }
+
+    // Free user — fetch real usage
     const row = await getExportLimitRow();
     const today = getTodayKey();
     let used = 0;
     if(row && row.last_date === today) used = Number(row.export_count || 0);
-    el.statusText.textContent = 'Export used today: ' + used + '/' + FREE_DAILY_LIMIT;
+    const remaining = Math.max(0, FREE_DAILY_LIMIT - used);
+    const barColor = used === 0 ? '#22c55e' : used < FREE_DAILY_LIMIT ? '#f59e0b' : '#ef4444';
+
+    if(used >= FREE_DAILY_LIMIT){
+      renderCounterBar(used, FREE_DAILY_LIMIT,
+        used+'/'+FREE_DAILY_LIMIT, '#ef4444', '#fff',
+        barColor, '#ef4444',
+        '\u26a0\ufe0f Limit reached. Upgrade Pro for unlimited!', '#ef4444'
+      );
+    } else {
+      renderCounterBar(used, FREE_DAILY_LIMIT,
+        used+'/'+FREE_DAILY_LIMIT, barColor, '#111827',
+        barColor, '#334155',
+        remaining+' export'+(remaining===1?'':'s')+' remaining today. Upgrade Pro for unlimited.', '#94a3b8'
+      );
+    }
+
+    if(statusEl) statusEl.textContent = 'Export used today: ' + used + '/' + FREE_DAILY_LIMIT;
   }
 
   function showUpgradePopup(){
@@ -867,7 +924,7 @@
 
       setAuthStatus('Membuat pembayaran Tripay...');
 
-      const res = await fetch('https://api.editorproductpro.com/create-payment', {
+      const res = await fetch('https://ton-cats-alert-internationally.trycloudflare.com/create-payment', {
         method: 'POST',
         headers: {
           'Content-Type':'application/json'
@@ -977,7 +1034,7 @@
   const fonts=['Arial','Verdana','Tahoma','Trebuchet MS','Times New Roman','Georgia','Courier New','Consolas','Segoe UI','Calibri','Cambria','Impact'];
   const state={images:[],currentIndex:0,selectedId:null,selectedType:null,action:null,history:[],redo:[]};
   const $=id=>document.getElementById(id);
-  const el={downloadZipBtn:$('downloadZipBtn'),caseUpper:$('caseUpper'),caseNormal:$('caseNormal'),templateSlot:$('templateSlot'),productName:$('productName'),productSKU:$('productSKU'),saveTemplate:$('saveTemplate'),loadTemplate:$('loadTemplate'),posLeft:$('posLeft'),posHCenter:$('posHCenter'),posRight:$('posRight'),posTop:$('posTop'),posVCenter:$('posVCenter'),posUnder:$('posUnder'),imagesInput:$('imagesInput'),imgCount:$('imgCount'),addTextBtn:$('addTextBtn'),addLogoBtn:$('addLogoBtn'),presetText1:$('presetText1'),presetText2:$('presetText2'),presetText3:$('presetText3'),addPresetPack:$('addPresetPack'),lockElement:$('lockElement'),logoInput:$('logoInput'),undoBtn:$('undoBtn'),redoBtn:$('redoBtn'),downloadCurrentBtn:$('downloadCurrentBtn'),downloadAllBtn:$('downloadAllBtn'),statusText:$('statusText'),presetAuto:$('presetAuto'),presetShopee:$('presetShopee'),presetDetail:$('presetDetail'),presetNatural:$('presetNatural'),photoBrightness:$('photoBrightness'),photoContrast:$('photoContrast'),photoExposure:$('photoExposure'),photoBrightnessInput:$('photoBrightnessInput'),photoContrastInput:$('photoContrastInput'),photoExposureInput:$('photoExposureInput'),photoBrightnessVal:$('photoBrightnessVal'),photoContrastVal:$('photoContrastVal'),photoExposureVal:$('photoExposureVal'),presetNormal:$('presetNormal'),bgCleanEnable:$('bgCleanEnable'),bgAdvancedEnable:$('bgAdvancedEnable'),bgStrength:$('bgStrength'),bgStrengthInput:$('bgStrengthInput'),bgStrengthVal:$('bgStrengthVal'),bgShadow:$('bgShadow'),bgShadowInput:$('bgShadowInput'),bgShadowVal:$('bgShadowVal'),bgEdge:$('bgEdge'),bgEdgeInput:$('bgEdgeInput'),bgEdgeVal:$('bgEdgeVal'),bgReset:$('bgReset'),canvasMode:$('canvasMode'),imageZoom:$('imageZoom'),imageZoomInput:$('imageZoomInput'),imageZoomVal:$('imageZoomVal'),centerImage:$('centerImage'),resetImageTransform:$('resetImageTransform'),stageInner:$('stageInner'),baseImage:$('baseImage'),emptyState:$('emptyState'),thumbs:$('thumbs'),noSelection:$('noSelection'),textControls:$('textControls'),logoControls:$('logoControls'),textContent:$('textContent'),fontFamily:$('fontFamily'),fontSize:$('fontSize'),textAlign:$('textAlign'),strokeWidth:$('strokeWidth'),textColor:$('textColor'),strokeColor:$('strokeColor'),gradientEnabled:$('gradientEnabled'),gradientColor1:$('gradientColor1'),gradientColor2:$('gradientColor2'),gradientColor3:$('gradientColor3'),gradientDirection:$('gradientDirection'),shadowColor:$('shadowColor'),shadowBlur:$('shadowBlur'),rotate:$('rotate'),opacity:$('opacity'),logoRotate:$('logoRotate'),logoOpacity:$('logoOpacity')};
+  const el={exportCounterBar:$('exportCounterBar'),exportCounterLabel:$('exportCounterLabel'),exportCounterBadge:$('exportCounterBadge'),exportCounterFill:$('exportCounterFill'),exportCounterSub:$('exportCounterSub'),downloadZipBtn:$('downloadZipBtn'),caseUpper:$('caseUpper'),caseNormal:$('caseNormal'),templateSlot:$('templateSlot'),productName:$('productName'),productSKU:$('productSKU'),saveTemplate:$('saveTemplate'),loadTemplate:$('loadTemplate'),posLeft:$('posLeft'),posHCenter:$('posHCenter'),posRight:$('posRight'),posTop:$('posTop'),posVCenter:$('posVCenter'),posUnder:$('posUnder'),imagesInput:$('imagesInput'),imgCount:$('imgCount'),addTextBtn:$('addTextBtn'),addLogoBtn:$('addLogoBtn'),presetText1:$('presetText1'),presetText2:$('presetText2'),presetText3:$('presetText3'),addPresetPack:$('addPresetPack'),lockElement:$('lockElement'),logoInput:$('logoInput'),undoBtn:$('undoBtn'),redoBtn:$('redoBtn'),downloadCurrentBtn:$('downloadCurrentBtn'),downloadAllBtn:$('downloadAllBtn'),statusText:$('statusText'),presetAuto:$('presetAuto'),presetShopee:$('presetShopee'),presetDetail:$('presetDetail'),presetNatural:$('presetNatural'),photoBrightness:$('photoBrightness'),photoContrast:$('photoContrast'),photoExposure:$('photoExposure'),photoBrightnessInput:$('photoBrightnessInput'),photoContrastInput:$('photoContrastInput'),photoExposureInput:$('photoExposureInput'),photoBrightnessVal:$('photoBrightnessVal'),photoContrastVal:$('photoContrastVal'),photoExposureVal:$('photoExposureVal'),presetNormal:$('presetNormal'),bgCleanEnable:$('bgCleanEnable'),bgAdvancedEnable:$('bgAdvancedEnable'),bgStrength:$('bgStrength'),bgStrengthInput:$('bgStrengthInput'),bgStrengthVal:$('bgStrengthVal'),bgShadow:$('bgShadow'),bgShadowInput:$('bgShadowInput'),bgShadowVal:$('bgShadowVal'),bgEdge:$('bgEdge'),bgEdgeInput:$('bgEdgeInput'),bgEdgeVal:$('bgEdgeVal'),bgReset:$('bgReset'),canvasMode:$('canvasMode'),imageZoom:$('imageZoom'),imageZoomInput:$('imageZoomInput'),imageZoomVal:$('imageZoomVal'),centerImage:$('centerImage'),resetImageTransform:$('resetImageTransform'),stageInner:$('stageInner'),baseImage:$('baseImage'),emptyState:$('emptyState'),thumbs:$('thumbs'),noSelection:$('noSelection'),textControls:$('textControls'),logoControls:$('logoControls'),textContent:$('textContent'),fontFamily:$('fontFamily'),fontSize:$('fontSize'),textAlign:$('textAlign'),strokeWidth:$('strokeWidth'),textColor:$('textColor'),strokeColor:$('strokeColor'),gradientEnabled:$('gradientEnabled'),gradientColor1:$('gradientColor1'),gradientColor2:$('gradientColor2'),gradientColor3:$('gradientColor3'),gradientDirection:$('gradientDirection'),shadowColor:$('shadowColor'),shadowBlur:$('shadowBlur'),rotate:$('rotate'),opacity:$('opacity'),logoRotate:$('logoRotate'),logoOpacity:$('logoOpacity')};
   fonts.forEach(f=>{const o=document.createElement('option');o.value=f;o.textContent=f;o.style.fontFamily=f;el.fontFamily.appendChild(o)});
   const currentImage=()=>state.images[state.currentIndex]||null, uid=()=>Math.random().toString(36).slice(2,11), clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
   function save(){const snap=JSON.stringify({images:state.images,currentIndex:state.currentIndex,selectedId:state.selectedId,selectedType:state.selectedType});if(state.history[state.history.length-1]!==snap){state.history.push(snap);state.redo=[];if(state.history.length>80)state.history.shift();}}
@@ -1189,7 +1246,7 @@
     renderImage(keep);
     el.statusText.textContent='ZIP downloaded: '+zipName;
   });
-  updateExportLimitText();
+  setTimeout(()=>updateExportLimitText(), 300);
   function escapeHtml(str){return String(str).replace(/[&<>\"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#039;'}[m]))}
 
   // === LANGUAGE SELECTOR ID / EN ===
