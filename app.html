@@ -2051,10 +2051,11 @@
                 <input id="mobPassword" type="password" placeholder="Password" style="width:100%;background:#0b1220;color:#e5e7eb;border:1px solid #334155;border-radius:10px;padding:10px 40px 10px 10px;outline:none">
                 <button type="button" id="mobTogglePass" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:transparent;border:0;color:#94a3b8;font-size:16px;cursor:pointer;padding:4px">👁</button>
               </div>
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
                 <button type="button" id="mobLoginBtn" style="background:#f59e0b;color:#111827;border:0;border-radius:10px;padding:10px;font-weight:900;cursor:pointer">Login</button>
                 <button type="button" id="mobRegisterBtn" style="background:transparent;color:#e5e7eb;border:1px solid #334155;border-radius:10px;padding:10px;font-weight:700;cursor:pointer">Register</button>
               </div>
+              <button type="button" id="mobForgotBtn" style="width:100%;background:transparent;color:#94a3b8;border:1px solid #1e293b;border-radius:10px;padding:9px;font-size:12px;cursor:pointer">🔑 Lupa / Reset Password</button>
             </div>
             <div id="mobAuthLoggedIn2" style="display:none">
               <div style="font-size:12px;color:#94a3b8">Login sebagai:</div>
@@ -2257,6 +2258,19 @@
         await registerAccount();
         mobRegBtn.disabled = false;
         mobRegBtn.textContent = 'Register';
+      });
+
+      // Forgot / Reset password
+      const mobForgotBtn = document.getElementById('mobForgotBtn');
+      if(mobForgotBtn) mobForgotBtn.addEventListener('click', async () => {
+        const mobEmail = document.getElementById('mobEmail');
+        const origEmail = document.getElementById('authEmail');
+        if(mobEmail && origEmail) origEmail.value = mobEmail.value;
+        mobForgotBtn.disabled = true;
+        mobForgotBtn.textContent = 'Mengirim...';
+        await sendResetPassword();
+        mobForgotBtn.disabled = false;
+        mobForgotBtn.textContent = '🔑 Lupa / Reset Password';
       });
 
       // Password eye toggle
