@@ -1676,7 +1676,7 @@
 
     const div = document.createElement('div');
     div.id = 'mobChangePassModal';
-    div.style.cssText = 'position:fixed;left:0;right:0;bottom:0;top:40%;background:transparent;z-index:99999;display:flex;align-items:flex-end;pointer-events:none';
+    div.style.cssText = 'position:fixed;inset:0;background:transparent;z-index:99999;pointer-events:none';
     div.innerHTML = `
       <div style="width:100%;background:#111827;border-radius:20px 20px 0 0;border-top:1px solid #334155;padding:18px 16px 36px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
@@ -1761,24 +1761,23 @@
 
     const div = document.createElement('div');
     div.id = 'mobileTextEditModal';
-    div.style.cssText = 'position:fixed;left:0;right:0;bottom:0;top:40%;background:transparent;z-index:99999;display:flex;align-items:flex-end;pointer-events:none';
-    const INP = 'width:100%;background:#0b1220;color:#e5e7eb;border:1px solid #334155;border-radius:8px;padding:8px;outline:none;margin-top:3px';
-    const SEL = 'width:100%;background:#0b1220;color:#e5e7eb;border:1px solid #334155;border-radius:8px;padding:9px;outline:none;margin-top:3px';
-    const COL = 'width:100%;height:38px;background:#0b1220;border:1px solid #334155;border-radius:8px;padding:2px;cursor:pointer;margin-top:3px';
-    const LBL = 'font-size:11px;color:#94a3b8;display:block';
+    div.style.cssText = 'position:fixed;inset:0;background:transparent;z-index:99999;pointer-events:none';
+    const INP = 'width:100%;background:#0b1220;color:#e5e7eb;border:1px solid #1e293b;border-radius:7px;padding:6px 8px;font-size:12px;outline:none;margin-top:2px';
+    const SEL = 'width:100%;background:#0b1220;color:#e5e7eb;border:1px solid #1e293b;border-radius:7px;padding:6px 8px;font-size:12px;outline:none;margin-top:2px';
+    const COL = 'width:100%;height:30px;background:#0b1220;border:1px solid #1e293b;border-radius:7px;padding:1px;cursor:pointer;margin-top:2px';
+    const LBL = 'font-size:10px;color:#64748b;display:block';
     div.innerHTML = `
-      <div style="width:100%;background:rgba(17,24,39,.97);backdrop-filter:blur(12px);border-radius:20px 20px 0 0;border-top:2px solid #f59e0b;padding:12px 16px 32px;max-height:58vh;overflow-y:auto;pointer-events:auto;box-shadow:0 -8px 32px rgba(0,0,0,.5)">
-        <div style="width:36px;height:4px;background:#475569;border-radius:999px;margin:0 auto 10px"></div>
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-          <span style="font-size:14px;font-weight:900;color:#fff">✏️ Edit Text</span>
+      <div id="mobEditFloatPanel" style="position:absolute;bottom:72px;left:8px;right:8px;background:rgba(11,18,32,.97);backdrop-filter:blur(16px);border-radius:18px;border:1px solid #f59e0b;padding:10px 12px 14px;max-height:42vh;overflow-y:auto;pointer-events:auto;box-shadow:0 8px 32px rgba(0,0,0,.6)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <span style="font-size:13px;font-weight:900;color:#f59e0b">✏️ Edit Text</span>
           <div style="display:flex;gap:8px">
-            <button id="mobTextEditSave" style="background:#f59e0b;color:#111827;border:0;border-radius:10px;padding:8px 16px;font-weight:900;font-size:14px;cursor:pointer">✅ Simpan</button>
-            <button id="mobTextEditClose" style="background:transparent;border:1px solid #334155;color:#e5e7eb;border-radius:8px;padding:8px 12px;font-size:13px;cursor:pointer">✕</button>
+            <button id="mobTextEditSave" style="background:#f59e0b;color:#111827;border:0;border-radius:8px;padding:6px 14px;font-weight:900;font-size:13px;cursor:pointer">✅ Simpan</button>
+            <button id="mobTextEditClose" style="background:transparent;border:1px solid #334155;color:#e5e7eb;border-radius:8px;padding:6px 10px;font-size:12px;cursor:pointer">✕ Batal</button>
           </div>
         </div>
 
         <textarea id="mobTextEditInput"
-          style="width:100%;background:#0b1220;color:#e5e7eb;border:1px solid #f59e0b;border-radius:10px;padding:8px 10px;font-size:14px;min-height:52px;resize:none;outline:none;font-family:inherit;margin-bottom:6px"
+          style="width:100%;background:#0b1220;color:#e5e7eb;border:1px solid #f59e0b;border-radius:8px;padding:7px 10px;font-size:13px;min-height:40px;resize:none;outline:none;font-family:inherit;margin-bottom:6px"
           placeholder="Ketik teks...">${o.text || ''}</textarea>
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
@@ -1786,14 +1785,14 @@
           <button id="mobTextNormal" style="background:transparent;color:#e5e7eb;border:1px solid #334155;border-radius:8px;padding:9px;font-weight:700;font-size:12px;cursor:pointer">Normal Case</button>
         </div>
 
-        <div style="height:1px;background:#334155;margin:8px 0"></div>
-        <div style="font-size:11px;color:#94a3b8;font-weight:700;margin-bottom:8px;letter-spacing:.06em">FONT</div>
+        <div style="height:1px;background:#1e293b;margin:5px 0"></div>
+        <div style="font-size:10px;color:#64748b;font-weight:700;margin:6px 0 4px;letter-spacing:.06em">FONT</div>
 
         <div style="margin-bottom:8px">
           <label style="${LBL}">Font Family</label>
           <select id="mobFontFamily" style="${SEL}"></select>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:5px">
           <div><label style="${LBL}">Font Size</label><input id="mobFontSize" type="number" min="8" max="200" style="${INP}"></div>
           <div><label style="${LBL}">Align</label>
             <select id="mobTextAlign" style="${SEL}">
@@ -1801,27 +1800,27 @@
             </select>
           </div>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:5px">
           <div><label style="${LBL}">Stroke Width</label><input id="mobStrokeWidth" type="number" min="0" max="20" style="${INP}"></div>
           <div><label style="${LBL}">Rotate</label><input id="mobRotate" type="number" style="${INP}"></div>
         </div>
 
-        <div style="height:1px;background:#334155;margin:8px 0"></div>
-        <div style="font-size:11px;color:#94a3b8;font-weight:700;margin-bottom:8px;letter-spacing:.06em">WARNA</div>
+        <div style="height:1px;background:#1e293b;margin:5px 0"></div>
+        <div style="font-size:10px;color:#64748b;font-weight:700;margin:6px 0 4px;letter-spacing:.06em">WARNA</div>
 
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:5px">
           <div><label style="${LBL}">Text Color</label><input id="mobTextColor" type="color" style="${COL}"></div>
           <div><label style="${LBL}">Stroke Color</label><input id="mobStrokeColor" type="color" style="${COL}"></div>
         </div>
 
-        <div style="height:1px;background:#334155;margin:8px 0"></div>
-        <div style="font-size:11px;color:#94a3b8;font-weight:700;margin-bottom:8px;letter-spacing:.06em">GRADIENT</div>
+        <div style="height:1px;background:#1e293b;margin:5px 0"></div>
+        <div style="font-size:10px;color:#64748b;font-weight:700;margin:6px 0 4px;letter-spacing:.06em">GRADIENT</div>
 
         <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#e5e7eb;margin-bottom:8px;cursor:pointer">
           <input id="mobGradientEnabled" type="checkbox" style="width:auto"> Enable Gradient
         </label>
         <div id="mobGradientFields" style="display:none">
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-bottom:5px">
             <div><label style="${LBL}">Color 1</label><input id="mobGradColor1" type="color" style="${COL}"></div>
             <div><label style="${LBL}">Color 2</label><input id="mobGradColor2" type="color" style="${COL}"></div>
             <div><label style="${LBL}">Color 3</label><input id="mobGradColor3" type="color" style="${COL}"></div>
@@ -1834,10 +1833,10 @@
           </div>
         </div>
 
-        <div style="height:1px;background:#334155;margin:8px 0"></div>
-        <div style="font-size:11px;color:#94a3b8;font-weight:700;margin-bottom:8px;letter-spacing:.06em">SHADOW & OPACITY</div>
+        <div style="height:1px;background:#1e293b;margin:5px 0"></div>
+        <div style="font-size:10px;color:#64748b;font-weight:700;margin:6px 0 4px;letter-spacing:.06em">SHADOW & OPACITY</div>
 
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:5px">
           <div><label style="${LBL}">Shadow Color</label><input id="mobShadowColor" type="color" style="${COL}"></div>
           <div><label style="${LBL}">Shadow Blur</label><input id="mobShadowBlur" type="number" min="0" style="${INP}"></div>
         </div>
@@ -1846,7 +1845,7 @@
           <input id="mobOpacity" type="range" min="5" max="100" style="width:100%;margin-top:4px">
         </div>
 
-        <button id="mobTextEditDelete" style="width:100%;background:transparent;color:#ef4444;border:1px solid #ef4444;border-radius:10px;padding:11px;font-weight:700;font-size:14px;cursor:pointer">🗑 Hapus Element</button>
+        <button id="mobTextEditDelete" style="width:100%;background:transparent;color:#ef4444;border:1px solid #ef4444;border-radius:8px;padding:8px;font-weight:700;font-size:12px;cursor:pointer;margin-top:4px">🗑 Hapus Element</button>
       </div>`;
     document.body.appendChild(div);
 
@@ -2239,7 +2238,7 @@
                 <input id="mobPassword" type="password" placeholder="Password" style="width:100%;background:#0b1220;color:#e5e7eb;border:1px solid #334155;border-radius:10px;padding:10px 40px 10px 10px;outline:none">
                 <button type="button" id="mobTogglePass" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:transparent;border:0;color:#94a3b8;font-size:16px;cursor:pointer;padding:4px">👁</button>
               </div>
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:5px">
                 <button type="button" id="mobLoginBtn" style="background:#f59e0b;color:#111827;border:0;border-radius:10px;padding:10px;font-weight:900;cursor:pointer">Login</button>
                 <button type="button" id="mobRegisterBtn" style="background:transparent;color:#e5e7eb;border:1px solid #334155;border-radius:10px;padding:10px;font-weight:700;cursor:pointer">Register</button>
               </div>
@@ -2249,7 +2248,7 @@
               <div style="font-size:12px;color:#94a3b8">Login sebagai:</div>
               <div id="mobUserEmail2" style="font-size:13px;font-weight:700;margin:4px 0 8px;word-break:break-all"></div>
               <div id="mobPlanBadge2" style="display:inline-block;background:#0b1220;border:1px solid #334155;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:800;margin-bottom:8px">Plan: FREE</div>
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:5px">
                 <button type="button" id="mobUpgradeBtn2" style="background:#f59e0b;color:#111827;border:0;border-radius:10px;padding:10px;font-weight:900;cursor:pointer">⭐ Upgrade Pro</button>
                 <button type="button" id="mobLogoutBtn2" style="background:transparent;color:#e5e7eb;border:1px solid #334155;border-radius:10px;padding:10px;font-weight:700;cursor:pointer">Logout</button>
               </div>
