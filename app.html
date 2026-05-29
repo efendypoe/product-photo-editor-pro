@@ -1542,11 +1542,23 @@
       return;
     }
 
-    // Tap on element — always allow
+    // Tap on element — detect double tap for text edit
     const o = currentImage()?.items.find(it => it.id === node.dataset.id);
     if(!o) return;
     selectItem(o.id, o.type);
     if(o.locked){ e.preventDefault(); return; }
+
+    // Double tap on text element → open edit modal
+    if(o.type === 'text'){
+      const now = Date.now();
+      const gap = now - lastTapTime;
+      lastTapTime = now;
+      if(gap < 320){
+        e.preventDefault();
+        openMobileTextEdit(o);
+        return;
+      }
+    }
 
     const handle = e.target.classList?.contains('handle') ? (e.target.dataset.handle || '') : '';
     const rect = el.stageInner.getBoundingClientRect();
@@ -1561,6 +1573,78 @@
     };
     e.preventDefault();
   }, { passive:false });
+
+  // Mobile text edit modal — double tap text to open
+  function openMobileTextEdit(o){
+    const old = document.getElementById('mobileTextEditModal');
+    if(old) old.remove();
+
+    const div = document.createElement('div');
+    div.id = 'mobileTextEditModal';
+    div.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:99999;display:flex;align-items:flex-end';
+    div.innerHTML = `
+      <div style="width:100%;background:#111827;border-radius:20px 20px 0 0;border-top:1px solid #334155;padding:18px 16px 32px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+          <span style="font-size:15px;font-weight:900;color:#fff">✏️ Edit Text</span>
+          <button id="mobTextEditClose" style="background:transparent;border:1px solid #334155;color:#e5e7eb;border-radius:8px;padding:6px 12px;font-size:13px;cursor:pointer">Cancel</button>
+        </div>
+        <textarea id="mobTextEditInput"
+          style="width:100%;background:#0b1220;color:#e5e7eb;border:1px solid #f59e0b;border-radius:12px;padding:12px;font-size:16px;min-height:90px;resize:none;outline:none;font-family:inherit;margin-bottom:12px"
+          placeholder="Ketik teks...">${o.text || ''}</textarea>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+          <button id="mobTextEditSave" style="background:#f59e0b;color:#111827;border:0;border-radius:12px;padding:13px;font-weight:900;font-size:15px;cursor:pointer">✅ Simpan</button>
+          <button id="mobTextEditDelete" style="background:transparent;color:#ef4444;border:1px solid #ef4444;border-radius:12px;padding:13px;font-weight:700;font-size:15px;cursor:pointer">🗑 Hapus</button>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <button id="mobTextUpper" style="background:transparent;color:#e5e7eb;border:1px solid #334155;border-radius:10px;padding:10px;font-weight:700;font-size:13px;cursor:pointer">UPPERCASE</button>
+          <button id="mobTextNormal" style="background:transparent;color:#e5e7eb;border:1px solid #334155;border-radius:10px;padding:10px;font-weight:700;font-size:13px;cursor:pointer">Normal Case</button>
+        </div>
+      </div>`;
+    document.body.appendChild(div);
+
+    // Auto focus keyboard
+    setTimeout(() => {
+      const ta = document.getElementById('mobTextEditInput');
+      if(ta){ ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }
+    }, 100);
+
+    // Save
+    document.getElementById('mobTextEditSave').addEventListener('click', () => {
+      const newText = document.getElementById('mobTextEditInput').value;
+      save();
+      state.images.forEach(img => {
+        const it = img.items.find(x => x.group === o.group && x.type === 'text');
+        if(it) it.text = newText;
+      });
+      renderImage(state.currentIndex);
+      div.remove();
+    });
+
+    // Delete element
+    document.getElementById('mobTextEditDelete').addEventListener('click', () => {
+      save();
+      state.images.forEach(img => { img.items = img.items.filter(it => it.group !== o.group); });
+      state.selectedId = null; state.selectedType = null;
+      renderImage(state.currentIndex);
+      div.remove();
+    });
+
+    // UPPERCASE
+    document.getElementById('mobTextUpper').addEventListener('click', () => {
+      const ta = document.getElementById('mobTextEditInput');
+      if(ta) ta.value = ta.value.toUpperCase();
+    });
+
+    // Normal case
+    document.getElementById('mobTextNormal').addEventListener('click', () => {
+      const ta = document.getElementById('mobTextEditInput');
+      if(ta) ta.value = ta.value.toLowerCase().split(' ').map(w => w.charAt(0).toUpperCase()+w.slice(1)).join(' ');
+    });
+
+    // Close
+    document.getElementById('mobTextEditClose').addEventListener('click', () => div.remove());
+    div.addEventListener('click', e => { if(e.target === div) div.remove(); });
+  }
 
   // Pinch-to-zoom state
   let pinchStartDist = 0;
@@ -1962,19 +2046,45 @@
       const mobUp = document.getElementById('mobUploadBtn');
       const origUp = document.getElementById('imagesInput');
       if(mobUp && origUp) mobUp.addEventListener('click', () => origUp.click());
+
       // Auth sync
       syncMobileAuth();
-      wire('mobLoginBtn', 'loginBtn');
-      wire('mobRegisterBtn', 'registerBtn');
+
+      // Login — sync fields first then call loginAccount directly
+      const mobLoginBtn = document.getElementById('mobLoginBtn');
+      if(mobLoginBtn) mobLoginBtn.addEventListener('click', async () => {
+        const mobEmail = document.getElementById('mobEmail');
+        const mobPass = document.getElementById('mobPassword');
+        const origEmail = document.getElementById('authEmail');
+        const origPass = document.getElementById('authPassword');
+        if(mobEmail && origEmail) origEmail.value = mobEmail.value;
+        if(mobPass && origPass) origPass.value = mobPass.value;
+        mobLoginBtn.disabled = true;
+        mobLoginBtn.textContent = 'Loading...';
+        await loginAccount();
+        mobLoginBtn.disabled = false;
+        mobLoginBtn.textContent = 'Login';
+        syncMobileAuth();
+      });
+
+      // Register — sync fields first
+      const mobRegBtn = document.getElementById('mobRegisterBtn');
+      if(mobRegBtn) mobRegBtn.addEventListener('click', async () => {
+        const mobEmail = document.getElementById('mobEmail');
+        const mobPass = document.getElementById('mobPassword');
+        const origEmail = document.getElementById('authEmail');
+        const origPass = document.getElementById('authPassword');
+        if(mobEmail && origEmail) origEmail.value = mobEmail.value;
+        if(mobPass && origPass) origPass.value = mobPass.value;
+        mobRegBtn.disabled = true;
+        mobRegBtn.textContent = 'Loading...';
+        await registerAccount();
+        mobRegBtn.disabled = false;
+        mobRegBtn.textContent = 'Register';
+      });
+
       wire('mobUpgradeBtn2', 'upgradeAccountBtn');
       wire('mobLogoutBtn2', 'logoutBtn');
-      // Sync email/password fields
-      const mobEmail = document.getElementById('mobEmail');
-      const mobPass = document.getElementById('mobPassword');
-      const origEmail = document.getElementById('authEmail');
-      const origPass = document.getElementById('authPassword');
-      if(mobEmail && origEmail){ mobEmail.addEventListener('input', () => origEmail.value = mobEmail.value); }
-      if(mobPass && origPass){ mobPass.addEventListener('input', () => origPass.value = mobPass.value); }
     }
 
     if(tabName === 'edit'){
