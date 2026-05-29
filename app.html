@@ -1778,107 +1778,109 @@
     div.style.cssText = 'position:fixed;inset:0;background:transparent;z-index:99999;pointer-events:none';
 
     div.innerHTML = `
-      <div style="position:absolute;bottom:72px;left:8px;right:8px;background:rgba(11,18,32,.97);backdrop-filter:blur(16px);border-radius:18px;border:1px solid #f59e0b;padding:12px 14px 16px;pointer-events:auto;box-shadow:0 8px 32px rgba(0,0,0,.6)">
+      <div style="position:absolute;bottom:72px;left:8px;right:8px;background:rgba(11,18,32,.97);backdrop-filter:blur(16px);border-radius:18px;border:1px solid #f59e0b;padding:10px 14px 14px;pointer-events:auto;box-shadow:0 8px 32px rgba(0,0,0,.6)">
 
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <!-- Header -->
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
           <span style="font-size:13px;font-weight:900;color:#f59e0b">🖼 Edit Logo</span>
-          <div style="display:flex;gap:8px">
-            <button id="mobLogoSave" style="background:#f59e0b;color:#111827;border:0;border-radius:8px;padding:6px 14px;font-weight:900;font-size:13px;cursor:pointer">✅ Simpan</button>
-            <button id="mobLogoClose" style="background:transparent;border:1px solid #334155;color:#e5e7eb;border-radius:8px;padding:6px 10px;font-size:12px;cursor:pointer">✕ Batal</button>
+          <div style="display:flex;gap:6px">
+            <button id="mobLogoSave" style="background:#f59e0b;color:#111827;border:0;border-radius:8px;padding:5px 12px;font-weight:900;font-size:12px;cursor:pointer">✅ Simpan</button>
+            <button id="mobLogoClose" style="background:transparent;border:1px solid #334155;color:#e5e7eb;border-radius:8px;padding:5px 9px;font-size:12px;cursor:pointer">✕</button>
+            <button id="mobLogoDelete" style="background:transparent;color:#ef4444;border:1px solid #ef4444;border-radius:8px;padding:5px 9px;font-size:12px;cursor:pointer">🗑</button>
           </div>
         </div>
 
-        <!-- ROTATE — drag slider model -->
-        <div style="margin-bottom:14px">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-            <label style="font-size:11px;color:#94a3b8;font-weight:700">ROTATE</label>
-            <span id="mobLogoRotateVal" style="font-size:12px;font-weight:900;color:#f59e0b">${Math.round(o.rotate||0)}°</span>
-          </div>
+        <!-- ROTATE -->
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <span style="font-size:11px;color:#94a3b8;font-weight:700;width:52px;flex-shrink:0">ROTATE</span>
           <input id="mobLogoRotate" type="range" min="-180" max="180" value="${Math.round(o.rotate||0)}"
-            style="width:100%;accent-color:#f59e0b;cursor:pointer">
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:8px">
-            <button id="mobLogoRot0" style="background:#0b1220;color:#e5e7eb;border:1px solid #1e293b;border-radius:8px;padding:7px;font-size:12px;cursor:pointer">0°</button>
-            <button id="mobLogoRot90" style="background:#0b1220;color:#e5e7eb;border:1px solid #1e293b;border-radius:8px;padding:7px;font-size:12px;cursor:pointer">90°</button>
-            <button id="mobLogoRot180" style="background:#0b1220;color:#e5e7eb;border:1px solid #1e293b;border-radius:8px;padding:7px;font-size:12px;cursor:pointer">180°</button>
-          </div>
+            style="flex:1;accent-color:#f59e0b;cursor:pointer;touch-action:none">
+          <span id="mobLogoRotateVal" style="font-size:12px;font-weight:900;color:#f59e0b;width:38px;text-align:right;flex-shrink:0">${Math.round(o.rotate||0)}°</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-bottom:10px">
+          <button id="mobLogoRot0"   style="background:#0b1220;color:#e5e7eb;border:1px solid #1e293b;border-radius:7px;padding:6px;font-size:11px;cursor:pointer">0°</button>
+          <button id="mobLogoRot90"  style="background:#0b1220;color:#e5e7eb;border:1px solid #1e293b;border-radius:7px;padding:6px;font-size:11px;cursor:pointer">90°</button>
+          <button id="mobLogoRot180" style="background:#0b1220;color:#e5e7eb;border:1px solid #1e293b;border-radius:7px;padding:6px;font-size:11px;cursor:pointer">180°</button>
         </div>
 
         <!-- OPACITY -->
-        <div style="margin-bottom:14px">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-            <label style="font-size:11px;color:#94a3b8;font-weight:700">OPACITY</label>
-            <span id="mobLogoOpacityVal" style="font-size:12px;font-weight:900;color:#f59e0b">${o.opacity||60}%</span>
-          </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <span style="font-size:11px;color:#94a3b8;font-weight:700;width:52px;flex-shrink:0">OPACITY</span>
           <input id="mobLogoOpacity" type="range" min="5" max="100" value="${o.opacity||60}"
-            style="width:100%;accent-color:#f59e0b;cursor:pointer">
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;margin-top:8px">
-            <button id="mobLogoOp25" style="background:#0b1220;color:#e5e7eb;border:1px solid #1e293b;border-radius:8px;padding:7px;font-size:12px;cursor:pointer">25%</button>
-            <button id="mobLogoOp50" style="background:#0b1220;color:#e5e7eb;border:1px solid #1e293b;border-radius:8px;padding:7px;font-size:12px;cursor:pointer">50%</button>
-            <button id="mobLogoOp75" style="background:#0b1220;color:#e5e7eb;border:1px solid #1e293b;border-radius:8px;padding:7px;font-size:12px;cursor:pointer">75%</button>
-            <button id="mobLogoOp100" style="background:#0b1220;color:#e5e7eb;border:1px solid #1e293b;border-radius:8px;padding:7px;font-size:12px;cursor:pointer">100%</button>
-          </div>
+            style="flex:1;accent-color:#f59e0b;cursor:pointer;touch-action:none">
+          <span id="mobLogoOpacityVal" style="font-size:12px;font-weight:900;color:#f59e0b;width:38px;text-align:right;flex-shrink:0">${o.opacity||60}%</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:5px;margin-bottom:10px">
+          <button id="mobLogoOp25"  style="background:#0b1220;color:#e5e7eb;border:1px solid #1e293b;border-radius:7px;padding:6px;font-size:11px;cursor:pointer">25%</button>
+          <button id="mobLogoOp50"  style="background:#0b1220;color:#e5e7eb;border:1px solid #1e293b;border-radius:7px;padding:6px;font-size:11px;cursor:pointer">50%</button>
+          <button id="mobLogoOp75"  style="background:#0b1220;color:#e5e7eb;border:1px solid #1e293b;border-radius:7px;padding:6px;font-size:11px;cursor:pointer">75%</button>
+          <button id="mobLogoOp100" style="background:#0b1220;color:#e5e7eb;border:1px solid #1e293b;border-radius:7px;padding:6px;font-size:11px;cursor:pointer">100%</button>
         </div>
 
         <!-- QUICK POSITION -->
-        <div style="margin-bottom:10px">
-          <label style="font-size:11px;color:#94a3b8;font-weight:700;display:block;margin-bottom:6px">QUICK POSITION</label>
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:6px">
-            <button id="mobLogoPosLeft"    style="background:#0b1220;color:#e5e7eb;border:1px solid #1e293b;border-radius:8px;padding:8px;font-size:12px;cursor:pointer">◀ Left</button>
-            <button id="mobLogoPosCenter"  style="background:#f59e0b;color:#111827;border:0;border-radius:8px;padding:8px;font-size:12px;font-weight:700;cursor:pointer">Center</button>
-            <button id="mobLogoPosRight"   style="background:#0b1220;color:#e5e7eb;border:1px solid #1e293b;border-radius:8px;padding:8px;font-size:12px;cursor:pointer">Right ▶</button>
-          </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
-            <button id="mobLogoPosTop"     style="background:#0b1220;color:#e5e7eb;border:1px solid #1e293b;border-radius:8px;padding:8px;font-size:12px;cursor:pointer">▲ Top</button>
-            <button id="mobLogoPosVCenter" style="background:#f59e0b;color:#111827;border:0;border-radius:8px;padding:8px;font-size:12px;font-weight:700;cursor:pointer">Center</button>
-            <button id="mobLogoPosUnder"   style="background:#0b1220;color:#e5e7eb;border:1px solid #1e293b;border-radius:8px;padding:8px;font-size:12px;cursor:pointer">▼ Under</button>
-          </div>
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+          <span style="font-size:11px;color:#94a3b8;font-weight:700;width:100%">POSITION</span>
+          <button id="mobLogoPosLeft"    style="flex:1;background:#0b1220;color:#e5e7eb;border:1px solid #1e293b;border-radius:7px;padding:6px;font-size:11px;cursor:pointer">◀L</button>
+          <button id="mobLogoPosCenter"  style="flex:1;background:#f59e0b;color:#111827;border:0;border-radius:7px;padding:6px;font-size:11px;font-weight:700;cursor:pointer">CH</button>
+          <button id="mobLogoPosRight"   style="flex:1;background:#0b1220;color:#e5e7eb;border:1px solid #1e293b;border-radius:7px;padding:6px;font-size:11px;cursor:pointer">R▶</button>
+          <button id="mobLogoPosTop"     style="flex:1;background:#0b1220;color:#e5e7eb;border:1px solid #1e293b;border-radius:7px;padding:6px;font-size:11px;cursor:pointer">▲T</button>
+          <button id="mobLogoPosVCenter" style="flex:1;background:#f59e0b;color:#111827;border:0;border-radius:7px;padding:6px;font-size:11px;font-weight:700;cursor:pointer">CV</button>
+          <button id="mobLogoPosUnder"   style="flex:1;background:#0b1220;color:#e5e7eb;border:1px solid #1e293b;border-radius:7px;padding:6px;font-size:11px;cursor:pointer">▼U</button>
         </div>
-
-        <button id="mobLogoDelete" style="width:100%;background:transparent;color:#ef4444;border:1px solid #ef4444;border-radius:8px;padding:9px;font-weight:700;font-size:12px;cursor:pointer">🗑 Hapus Logo</button>
       </div>`;
 
     document.body.appendChild(div);
 
     const g = id => document.getElementById(id);
 
-    // Live preview function
-    function applyLogoPreview(){
+    // Live preview — update overlay directly (smooth, no full re-render lag)
+    function applyLogoPreviewFast(){
       const rot = parseFloat(g('mobLogoRotate')?.value) || 0;
       const opa = parseInt(g('mobLogoOpacity')?.value) || 60;
+      // Update state
       state.images.forEach(img => {
         const it = img.items.find(x => x.group === o.group && x.type === 'logo');
         if(it){ it.rotate = rot; it.opacity = opa; }
       });
-      renderImage(state.currentIndex);
+      // Update overlay directly — no canvas re-render needed for rotate/opacity
+      const node = el.stageInner.querySelector('.overlay[data-id="' + o.id + '"]');
+      if(node){
+        node.style.opacity = opa / 100;
+        node.style.transform = 'translate(-50%,-50%) rotate(' + rot + 'deg) scale(' + (o.scale/100) + ')';
+      }
     }
 
-    // Rotate slider
+    // Rotate slider — smooth with requestAnimationFrame
+    let rafRot = null;
     g('mobLogoRotate').addEventListener('input', () => {
-      g('mobLogoRotateVal').textContent = Math.round(parseFloat(g('mobLogoRotate').value)) + '°';
-      applyLogoPreview();
+      const val = Math.round(parseFloat(g('mobLogoRotate').value));
+      g('mobLogoRotateVal').textContent = val + '°';
+      if(rafRot) cancelAnimationFrame(rafRot);
+      rafRot = requestAnimationFrame(applyLogoPreviewFast);
     });
 
-    // Opacity slider
+    // Opacity slider — smooth with requestAnimationFrame
+    let rafOpa = null;
     g('mobLogoOpacity').addEventListener('input', () => {
       g('mobLogoOpacityVal').textContent = g('mobLogoOpacity').value + '%';
-      applyLogoPreview();
+      if(rafOpa) cancelAnimationFrame(rafOpa);
+      rafOpa = requestAnimationFrame(applyLogoPreviewFast);
     });
 
     // Rotate presets
     const setRot = val => {
       g('mobLogoRotate').value = val;
       g('mobLogoRotateVal').textContent = val + '°';
-      applyLogoPreview();
+      applyLogoPreviewFast();
     };
     g('mobLogoRot0').addEventListener('click', () => setRot(0));
     g('mobLogoRot90').addEventListener('click', () => setRot(90));
     g('mobLogoRot180').addEventListener('click', () => setRot(180));
 
-    // Opacity presets
     const setOpa = val => {
       g('mobLogoOpacity').value = val;
       g('mobLogoOpacityVal').textContent = val + '%';
-      applyLogoPreview();
+      applyLogoPreviewFast();
     };
     g('mobLogoOp25').addEventListener('click', () => setOpa(25));
     g('mobLogoOp50').addEventListener('click', () => setOpa(50));
@@ -1908,7 +1910,7 @@
 
     // Save
     g('mobLogoSave').addEventListener('click', () => {
-      applyLogoPreview();
+      applyLogoPreviewFast();
       save();
       div.remove();
       setTimeout(() => renderImage(state.currentIndex), 100);
