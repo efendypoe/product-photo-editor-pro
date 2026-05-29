@@ -1826,7 +1826,7 @@
 
   window.addEventListener('touchmove', e => {
     // Pinch to zoom — 2 fingers on canvas
-    if(e.touches.length === 2 && e.target.closest('#stageInner')){
+    if(e.touches.length === 2 && e.target.closest('#stageInner') && imageMoveUnlocked){
       isPinching = true;
       state.action = null; // cancel any drag
       const dist = getPinchDist(e);
