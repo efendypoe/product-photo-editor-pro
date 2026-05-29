@@ -1901,47 +1901,100 @@
     // Gradient toggle show/hide
     const gradFields = g('mobGradientFields');
     if(gradFields) gradFields.style.display = o.gradientEnabled ? 'block' : 'none';
-    if(g('mobGradientEnabled')) g('mobGradientEnabled').addEventListener('change', () => {
-      if(gradFields) gradFields.style.display = g('mobGradientEnabled').checked ? 'block' : 'none';
+
+    // ===== LIVE PREVIEW FUNCTION =====
+    // Snapshot state awal untuk Cancel/Close (restore jika tidak Simpan)
+    const originalProps = {
+      text: o.text, fontFamily: o.fontFamily, fontSize: o.fontSize,
+      align: o.align, strokeWidth: o.strokeWidth, rotate: o.rotate,
+      color: o.color, strokeColor: o.strokeColor,
+      gradientEnabled: o.gradientEnabled,
+      gradientColor1: o.gradientColor1, gradientColor2: o.gradientColor2, gradientColor3: o.gradientColor3,
+      gradientDirection: o.gradientDirection,
+      shadowColor: o.shadowColor, shadowBlur: o.shadowBlur, opacity: o.opacity
+    };
+
+    let previewTimer = null;
+    function applyLivePreview(){
+      clearTimeout(previewTimer);
+      previewTimer = setTimeout(() => {
+        state.images.forEach(img => {
+          const it = img.items.find(x => x.group === o.group && x.type === 'text');
+          if(!it) return;
+          it.text           = g('mobTextEditInput')?.value ?? it.text;
+          it.fontFamily     = g('mobFontFamily')?.value ?? it.fontFamily;
+          it.fontSize       = parseInt(g('mobFontSize')?.value) || it.fontSize;
+          it.align          = g('mobTextAlign')?.value ?? it.align;
+          it.strokeWidth    = parseFloat(g('mobStrokeWidth')?.value) || 0;
+          it.rotate         = parseFloat(g('mobRotate')?.value) || 0;
+          it.color          = g('mobTextColor')?.value ?? it.color;
+          it.strokeColor    = g('mobStrokeColor')?.value ?? it.strokeColor;
+          it.gradientEnabled  = g('mobGradientEnabled')?.checked ?? it.gradientEnabled;
+          it.gradientColor1   = g('mobGradColor1')?.value ?? it.gradientColor1;
+          it.gradientColor2   = g('mobGradColor2')?.value ?? it.gradientColor2;
+          it.gradientColor3   = g('mobGradColor3')?.value ?? it.gradientColor3;
+          it.gradientDirection= g('mobGradDirection')?.value ?? it.gradientDirection;
+          it.shadowColor    = g('mobShadowColor')?.value ?? it.shadowColor;
+          it.shadowBlur     = parseFloat(g('mobShadowBlur')?.value) || 0;
+          it.opacity        = parseInt(g('mobOpacity')?.value) || 100;
+        });
+        renderImage(state.currentIndex);
+      }, 120); // debounce 120ms — smooth tapi tidak lag
+    }
+
+    function restoreOriginal(){
+      state.images.forEach(img => {
+        const it = img.items.find(x => x.group === o.group && x.type === 'text');
+        if(!it) return;
+        Object.assign(it, originalProps);
+      });
+      renderImage(state.currentIndex);
+    }
+
+    // Wire ALL inputs to live preview
+    const liveInputIds = [
+      'mobTextEditInput','mobFontFamily','mobFontSize','mobTextAlign',
+      'mobStrokeWidth','mobRotate','mobTextColor','mobStrokeColor',
+      'mobGradientEnabled','mobGradColor1','mobGradColor2','mobGradColor3',
+      'mobGradDirection','mobShadowColor','mobShadowBlur','mobOpacity'
+    ];
+    liveInputIds.forEach(id => {
+      const el2 = g(id);
+      if(!el2) return;
+      const evts = el2.type === 'range' || el2.tagName === 'TEXTAREA'
+        ? ['input'] : ['input', 'change'];
+      evts.forEach(ev => el2.addEventListener(ev, applyLivePreview));
     });
 
-    // Opacity live preview
+    // Gradient toggle show/hide + live preview
+    if(g('mobGradientEnabled')) g('mobGradientEnabled').addEventListener('change', () => {
+      if(gradFields) gradFields.style.display = g('mobGradientEnabled').checked ? 'block' : 'none';
+      applyLivePreview();
+    });
+
+    // Opacity label update
     if(g('mobOpacity')) g('mobOpacity').addEventListener('input', () => {
       if(g('mobOpacityVal')) g('mobOpacityVal').textContent = g('mobOpacity').value;
     });
 
-    // SAVE — apply ALL properties
+    // SAVE — commit to history & close
     const origSave = g('mobTextEditSave');
     origSave.addEventListener('click', () => {
-      save();
-      state.images.forEach(img => {
-        const it = img.items.find(x => x.group === o.group && x.type === 'text');
-        if(it){
-          it.text = g('mobTextEditInput')?.value ?? it.text;
-          it.fontFamily = g('mobFontFamily')?.value ?? it.fontFamily;
-          it.fontSize = parseInt(g('mobFontSize')?.value) || it.fontSize;
-          it.align = g('mobTextAlign')?.value ?? it.align;
-          it.strokeWidth = parseFloat(g('mobStrokeWidth')?.value) || 0;
-          it.rotate = parseFloat(g('mobRotate')?.value) || 0;
-          it.color = g('mobTextColor')?.value ?? it.color;
-          it.strokeColor = g('mobStrokeColor')?.value ?? it.strokeColor;
-          it.gradientEnabled = g('mobGradientEnabled')?.checked ?? it.gradientEnabled;
-          it.gradientColor1 = g('mobGradColor1')?.value ?? it.gradientColor1;
-          it.gradientColor2 = g('mobGradColor2')?.value ?? it.gradientColor2;
-          it.gradientColor3 = g('mobGradColor3')?.value ?? it.gradientColor3;
-          it.gradientDirection = g('mobGradDirection')?.value ?? it.gradientDirection;
-          it.shadowColor = g('mobShadowColor')?.value ?? it.shadowColor;
-          it.shadowBlur = parseFloat(g('mobShadowBlur')?.value) || 0;
-          it.opacity = parseInt(g('mobOpacity')?.value) || 100;
-        }
-      });
+      applyLivePreview(); // ensure latest values applied
+      clearTimeout(previewTimer);
+      save(); // commit to undo history
       renderImage(state.currentIndex);
       div.remove();
     }, { once: true });
 
-    // Close
-    document.getElementById('mobTextEditClose').addEventListener('click', () => div.remove());
-    div.addEventListener('click', e => { if(e.target === div) div.remove(); });
+    // CLOSE / CANCEL — restore original & close
+    const closeModal = () => {
+      clearTimeout(previewTimer);
+      restoreOriginal();
+      div.remove();
+    };
+    document.getElementById('mobTextEditClose').addEventListener('click', closeModal);
+    div.addEventListener('click', e => { if(e.target === div) closeModal(); });
   }
 
   // Pinch-to-zoom state
