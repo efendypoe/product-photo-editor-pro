@@ -290,9 +290,9 @@
       </div>
     </div>
 
-    <div class="card"><h2>Images</h2><label>Upload Images</label><input id="imagesInput" type="file" accept="image/*" multiple><div class="mini"><span id="imgCount">0</span> images selected</div></div>
+    <div class="card" id="imagesCard"><h2>Images</h2><label>Upload Images</label><input id="imagesInput" type="file" accept="image/*" multiple><div class="mini"><span id="imgCount">0</span> images selected</div></div>
 
-    <div class="card"><h2>Photo Edit</h2>
+    <div class="card" id="photoEditCard"><h2>Photo Edit</h2>
       <div class="btns"><button id="presetAuto" type="button">Auto Enhance</button><button id="presetShopee" type="button" class="ghost">Bright Shopee</button></div>
       <div class="btns" style="margin-top:10px"><button id="presetDetail" type="button" class="ghost">Sharp Detail</button><button id="presetNatural" type="button" class="ghost">Soft Natural</button></div>
       <div style="margin-top:12px"><label>Brightness</label><div class="row" style="grid-template-columns:1fr 86px;align-items:center"><input id="photoBrightness" type="range" min="50" max="180" value="100"><input id="photoBrightnessInput" type="number" min="50" max="180" value="100"></div><div class="mini" id="photoBrightnessVal">100%</div>
@@ -319,7 +319,7 @@
       <div class="btns" style="margin-top:10px"><button id="centerImage" type="button" class="ghost">Center Image</button><button id="resetImageTransform" type="button" class="ghost">Reset Image</button></div></div>
     </div>
 
-    <div class="card"><h2>Elements</h2>
+    <div class="card" id="elementsCard"><h2>Elements</h2>
       <div class="btns"><button id="addTextBtn" type="button">+ Text</button><button id="addLogoBtn" type="button" class="ghost">+ Logo</button></div><input id="logoInput" type="file" accept="image/*" class="hidden">
       <div style="margin-top:10px"><label>Preset Text 1</label><input id="presetText1" type="text" value="Lengkap Motor Parts"><label style="margin-top:8px">Preset Text 2</label><input id="presetText2" type="text" value="Original 100%"><label style="margin-top:8px">Preset Text 3</label><input id="presetText3" type="text" value="CODE / SKU"></div>
       <div class="btns" style="margin-top:10px"><button id="addPresetPack" type="button" class="green">Add Preset Pack</button><button id="lockElement" type="button" class="ghost">Lock Element</button></div>
@@ -327,9 +327,9 @@
       <div style="height:1px;background:var(--line);margin:14px 0"></div><h2>Quick Position</h2><label>Horizontal</label><div class="row3"><button id="posLeft" type="button" class="ghost">Left</button><button id="posHCenter" type="button">Center</button><button id="posRight" type="button" class="ghost">Right</button></div><label>Vertical</label><div class="row3"><button id="posTop" type="button" class="ghost">Top</button><button id="posVCenter" type="button">Center</button><button id="posUnder" type="button" class="ghost">Under</button></div>
     </div>
 
-    <div class="card"><h2>Template</h2><label>Template Slot</label><select id="templateSlot"><option value="1">Template 1</option><option value="2">Template 2</option><option value="3">Template 3</option><option value="4">Template 4</option><option value="5">Template 5</option></select><div class="btns" style="margin-top:10px"><button id="saveTemplate" type="button">Save Template</button><button id="loadTemplate" type="button" class="ghost">Load Template</button></div></div>
-    <div class="card"><h2>Export Name</h2><label>Product Name</label><input id="productName" type="text" placeholder="BLOK SEHER BEAT FI"><label style="margin-top:8px">SKU / Code</label><input id="productSKU" type="text" placeholder="K1A / 5TP / 3C1"><div class="mini" style="margin-top:8px">Export format: SKU - Product Name.jpg</div></div>
-    <div class="card"><h2>History & Export</h2><div class="btns"><button id="undoBtn" type="button" class="ghost">Undo</button><button id="redoBtn" type="button" class="ghost">Redo</button></div>
+    <div class="card" id="templateCard"><h2>Template</h2><label>Template Slot</label><select id="templateSlot"><option value="1">Template 1</option><option value="2">Template 2</option><option value="3">Template 3</option><option value="4">Template 4</option><option value="5">Template 5</option></select><div class="btns" style="margin-top:10px"><button id="saveTemplate" type="button">Save Template</button><button id="loadTemplate" type="button" class="ghost">Load Template</button></div></div>
+    <div class="card" id="exportNameCard"><h2>Export Name</h2><label>Product Name</label><input id="productName" type="text" placeholder="BLOK SEHER BEAT FI"><label style="margin-top:8px">SKU / Code</label><input id="productSKU" type="text" placeholder="K1A / 5TP / 3C1"><div class="mini" style="margin-top:8px">Export format: SKU - Product Name.jpg</div></div>
+    <div class="card" id="historyExportCard"><h2>History & Export</h2><div class="btns"><button id="undoBtn" type="button" class="ghost">Undo</button><button id="redoBtn" type="button" class="ghost">Redo</button></div>
 
       <!-- EXPORT COUNTER BAR -->
       <div id="exportCounterBar" style="margin:12px 0 4px;border-radius:12px;padding:10px 12px;background:#0b1220;border:1px solid #334155;display:none">
@@ -348,7 +348,7 @@
 
   <main class="center"><div class="card" style="display:flex;flex-direction:column;flex:1"><h2>Preview</h2><div class="sub">Drag image empty area = move product. Drag element body = move element. Corner handles = scale.</div><div class="workspace"><div class="stage"><div id="emptyState">Upload images first.</div><div id="stageInner" class="stage-inner"><img id="baseImage" alt="preview"></div></div></div></div><div class="card"><h2>Image List</h2><div id="thumbs" class="thumbs"></div></div></main>
 
-  <aside class="panel right"><div class="card"><h2>Element Properties</h2><div id="noSelection" class="sub">No element selected.</div><div id="textControls" class="hidden"><h2>Text</h2><label>Text Content</label><textarea id="textContent"></textarea><div class="row"><div><label>Font</label><select id="fontFamily"></select></div><div><label>Font Size</label><input id="fontSize" type="number" value="42"></div></div><div class="row"><div><label>Align</label><select id="textAlign"><option value="left">Left</option><option value="center">Center</option><option value="right">Right</option></select></div><div><label>Stroke</label><input id="strokeWidth" type="number" value="0" min="0"></div></div><div class="row"><div><label>Text Color</label><input id="textColor" type="color" value="#ffffff"></div><div><label>Stroke Color</label><input id="strokeColor" type="color" value="#000000"></div></div><div class="row" style="grid-template-columns:1fr"><label style="display:flex;align-items:center;gap:8px"><input id="gradientEnabled" type="checkbox" style="width:auto"> Enable Gradient</label></div><div class="row3"><div><label>Color 1</label><input id="gradientColor1" type="color" value="#ffffff"></div><div><label>Color 2</label><input id="gradientColor2" type="color" value="#f59e0b"></div><div><label>Color 3</label><input id="gradientColor3" type="color" value="#ff5a00"></div></div><div class="row"><div><label>Gradient Direction</label><select id="gradientDirection"><option value="horizontal">Horizontal</option><option value="vertical">Vertical</option><option value="diagonal">Diagonal</option></select></div><div><label>Shadow Color</label><input id="shadowColor" type="color" value="#000000"></div></div><div class="row"><div><label>Shadow Blur</label><input id="shadowBlur" type="number" value="4" min="0"></div><div><label>Rotate</label><input id="rotate" type="number" value="0"></div></div><div class="row"><div><label>Opacity</label><input id="opacity" type="range" min="5" max="100" value="100"></div><div></div></div></div><div id="logoControls" class="hidden"><h2>Logo</h2><div class="row"><div><label>Rotate</label><input id="logoRotate" type="number" value="0"></div><div><label>Opacity</label><input id="logoOpacity" type="range" min="5" max="100" value="60"></div></div></div></div></aside>
+  <aside class="panel right"><div class="card" id="elementPropsCard"><h2>Element Properties</h2><div id="noSelection" class="sub">No element selected.</div><div id="textControls" class="hidden"><h2>Text</h2><label>Text Content</label><textarea id="textContent"></textarea><div class="row"><div><label>Font</label><select id="fontFamily"></select></div><div><label>Font Size</label><input id="fontSize" type="number" value="42"></div></div><div class="row"><div><label>Align</label><select id="textAlign"><option value="left">Left</option><option value="center">Center</option><option value="right">Right</option></select></div><div><label>Stroke</label><input id="strokeWidth" type="number" value="0" min="0"></div></div><div class="row"><div><label>Text Color</label><input id="textColor" type="color" value="#ffffff"></div><div><label>Stroke Color</label><input id="strokeColor" type="color" value="#000000"></div></div><div class="row" style="grid-template-columns:1fr"><label style="display:flex;align-items:center;gap:8px"><input id="gradientEnabled" type="checkbox" style="width:auto"> Enable Gradient</label></div><div class="row3"><div><label>Color 1</label><input id="gradientColor1" type="color" value="#ffffff"></div><div><label>Color 2</label><input id="gradientColor2" type="color" value="#f59e0b"></div><div><label>Color 3</label><input id="gradientColor3" type="color" value="#ff5a00"></div></div><div class="row"><div><label>Gradient Direction</label><select id="gradientDirection"><option value="horizontal">Horizontal</option><option value="vertical">Vertical</option><option value="diagonal">Diagonal</option></select></div><div><label>Shadow Color</label><input id="shadowColor" type="color" value="#000000"></div></div><div class="row"><div><label>Shadow Blur</label><input id="shadowBlur" type="number" value="4" min="0"></div><div><label>Rotate</label><input id="rotate" type="number" value="0"></div></div><div class="row"><div><label>Opacity</label><input id="opacity" type="range" min="5" max="100" value="100"></div><div></div></div></div><div id="logoControls" class="hidden"><h2>Logo</h2><div class="row"><div><label>Rotate</label><input id="logoRotate" type="number" value="0"></div><div><label>Opacity</label><input id="logoOpacity" type="range" min="5" max="100" value="60"></div></div></div></div></aside>
 </div>
 <script>
 (() => {
@@ -1597,8 +1597,22 @@
 
     // All inputs, selects, textareas — sync to original
     sheet.querySelectorAll('input,select,textarea').forEach(clone => {
+      if(!clone.id) return;
       const orig = document.getElementById(clone.id);
       if(!orig || clone === orig) return;
+
+      // File inputs — clicking clone triggers original directly
+      if(clone.type === 'file'){
+        clone.style.display = 'none';
+        // Create visible upload button to replace the hidden file input
+        const uploadBtn = document.createElement('button');
+        uploadBtn.type = 'button';
+        uploadBtn.style.cssText = 'width:100%;padding:14px;border-radius:12px;border:2px dashed #f59e0b;background:rgba(245,158,11,.08);color:#f59e0b;font-weight:900;font-size:15px;cursor:pointer;margin-bottom:8px';
+        uploadBtn.innerHTML = '📁 Pilih / Upload Foto Produk';
+        uploadBtn.addEventListener('click', () => orig.click());
+        clone.parentNode.insertBefore(uploadBtn, clone);
+        return;
+      }
 
       // Sync value from original
       if(clone.type === 'checkbox') clone.checked = orig.checked;
