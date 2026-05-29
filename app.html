@@ -531,9 +531,9 @@
       .upsert({ user_id: authUser.id, session_token: token, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
 
     if(error){
-      console.warn('Single login set error:', error.message);
-      setAuthStatus('Single login DB warning: ' + error.message);
-      alert('Single login belum aktif: ' + error.message + '\nPastikan permission tabel user_active_sessions sudah benar di Supabase.');
+      // RLS or permission error — log silently, don't interrupt user
+      console.warn('Single login set error (non-critical):', error.message);
+      setAuthStatus('Single login DB warning (non-critical): ' + error.message);
       return false;
     }
 
@@ -577,9 +577,9 @@
       .maybeSingle();
 
     if(error){
-      console.warn('Single login check error:', error.message);
-      setAuthStatus('Single login check warning: ' + error.message);
-      return true;
+      // DB error — skip this check cycle, don't logout user
+      console.warn('Single login check skipped (DB error):', error.message);
+      return true; // assume OK
     }
 
     if(!data || !data.session_token){
@@ -599,7 +599,7 @@
 
   function startSingleLoginChecker(){
     if(singleLoginTimer) clearInterval(singleLoginTimer);
-    singleLoginTimer = setInterval(()=>{ verifySingleLoginSession().catch(err=>console.warn('single login check failed', err)); }, 1500);
+    singleLoginTimer = setInterval(()=>{ verifySingleLoginSession().catch(err=>console.warn('single login check failed', err)); }, 8000);
   }
 
   window.addEventListener('focus', ()=>{
@@ -1666,6 +1666,91 @@
     e.preventDefault();
   }, { passive:false });
 
+  // Mobile Change Password modal
+  function openMobileChangePassword(){
+    const old = document.getElementById('mobChangePassModal');
+    if(old) old.remove();
+
+    const div = document.createElement('div');
+    div.id = 'mobChangePassModal';
+    div.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:99999;display:flex;align-items:flex-end';
+    div.innerHTML = `
+      <div style="width:100%;background:#111827;border-radius:20px 20px 0 0;border-top:1px solid #334155;padding:18px 16px 36px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+          <span style="font-size:15px;font-weight:900;color:#fff">🔑 Ganti Password</span>
+          <button id="mobChangePwClose" style="background:transparent;border:1px solid #334155;color:#e5e7eb;border-radius:8px;padding:6px 12px;font-size:13px;cursor:pointer">✕</button>
+        </div>
+        <label style="font-size:12px;color:#94a3b8;display:block;margin-bottom:4px">Password Saat Ini</label>
+        <div style="position:relative;margin-bottom:12px">
+          <input id="mobCurrPass" type="password" placeholder="Password saat ini"
+            style="width:100%;background:#0b1220;color:#e5e7eb;border:1px solid #334155;border-radius:10px;padding:10px 40px 10px 10px;outline:none">
+          <button type="button" id="mobCurrPassEye" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:transparent;border:0;color:#94a3b8;font-size:16px;cursor:pointer">👁</button>
+        </div>
+        <label style="font-size:12px;color:#94a3b8;display:block;margin-bottom:4px">Password Baru</label>
+        <div style="position:relative;margin-bottom:16px">
+          <input id="mobNewPass" type="password" placeholder="Minimal 6 karakter"
+            style="width:100%;background:#0b1220;color:#e5e7eb;border:1px solid #334155;border-radius:10px;padding:10px 40px 10px 10px;outline:none">
+          <button type="button" id="mobNewPassEye" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:transparent;border:0;color:#94a3b8;font-size:16px;cursor:pointer">👁</button>
+        </div>
+        <button id="mobChangePwSave" style="width:100%;background:#f59e0b;color:#111827;border:0;border-radius:12px;padding:14px;font-weight:900;font-size:15px;cursor:pointer;margin-bottom:8px">✅ Ganti Password</button>
+        <button id="mobForgotPassBtn2" style="width:100%;background:transparent;color:#94a3b8;border:1px solid #1e293b;border-radius:10px;padding:10px;font-size:12px;cursor:pointer">Kirim Link Reset Password ke Email</button>
+      </div>`;
+    document.body.appendChild(div);
+
+    // Eye toggles
+    const eyeToggle = (btnId, inputId) => {
+      const btn = document.getElementById(btnId);
+      const inp = document.getElementById(inputId);
+      if(btn && inp) btn.addEventListener('click', () => {
+        inp.type = inp.type === 'password' ? 'text' : 'password';
+        btn.textContent = inp.type === 'password' ? '👁' : '🙈';
+      });
+    };
+    eyeToggle('mobCurrPassEye', 'mobCurrPass');
+    eyeToggle('mobNewPassEye', 'mobNewPass');
+
+    // Save — change password via desktop flow
+    document.getElementById('mobChangePwSave').addEventListener('click', async () => {
+      const currPass = document.getElementById('mobCurrPass')?.value || '';
+      const newPass = document.getElementById('mobNewPass')?.value || '';
+      if(!currPass) return showToast('Isi password saat ini dulu.', 'error');
+      if(newPass.length < 6) return showToast('Password baru minimal 6 karakter.', 'error');
+
+      const btn = document.getElementById('mobChangePwSave');
+      btn.disabled = true; btn.textContent = 'Memproses...';
+
+      // Re-auth with current password then update
+      const { error: signInErr } = await supabaseClient.auth.signInWithPassword({
+        email: authUser.email, password: currPass
+      });
+      if(signInErr){
+        showToast('Password saat ini salah.', 'error');
+        btn.disabled = false; btn.textContent = '✅ Ganti Password';
+        return;
+      }
+      const { error: updateErr } = await supabaseClient.auth.updateUser({ password: newPass });
+      if(updateErr){
+        showToast(updateErr.message, 'error');
+        btn.disabled = false; btn.textContent = '✅ Ganti Password';
+        return;
+      }
+      showToast('Password berhasil diubah! Silakan login ulang.', 'success', 5000);
+      div.remove();
+      setTimeout(() => logoutAccount(), 1500);
+    });
+
+    // Forgot password link
+    document.getElementById('mobForgotPassBtn2').addEventListener('click', async () => {
+      const origEmail = document.getElementById('authEmail');
+      if(origEmail) origEmail.value = authUser?.email || '';
+      await sendResetPassword();
+    });
+
+    // Close
+    document.getElementById('mobChangePwClose').addEventListener('click', () => div.remove());
+    div.addEventListener('click', e => { if(e.target === div) div.remove(); });
+  }
+
   // Mobile text edit modal — double tap text to open
   function openMobileTextEdit(o){
     const old = document.getElementById('mobileTextEditModal');
@@ -2107,10 +2192,11 @@
               <div style="font-size:12px;color:#94a3b8">Login sebagai:</div>
               <div id="mobUserEmail2" style="font-size:13px;font-weight:700;margin:4px 0 8px;word-break:break-all"></div>
               <div id="mobPlanBadge2" style="display:inline-block;background:#0b1220;border:1px solid #334155;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:800;margin-bottom:8px">Plan: FREE</div>
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
                 <button type="button" id="mobUpgradeBtn2" style="background:#f59e0b;color:#111827;border:0;border-radius:10px;padding:10px;font-weight:900;cursor:pointer">⭐ Upgrade Pro</button>
                 <button type="button" id="mobLogoutBtn2" style="background:transparent;color:#e5e7eb;border:1px solid #334155;border-radius:10px;padding:10px;font-weight:700;cursor:pointer">Logout</button>
               </div>
+              <button type="button" id="mobChangePassBtn" style="width:100%;background:transparent;color:#94a3b8;border:1px solid #1e293b;border-radius:10px;padding:9px;font-size:12px;cursor:pointer;margin-bottom:4px">🔑 Ganti Password</button>
             </div>
           </div>
         </div>`;
@@ -2331,6 +2417,10 @@
 
       wire('mobUpgradeBtn2', 'upgradeAccountBtn');
       wire('mobLogoutBtn2', 'logoutBtn');
+
+      // Change password button — open modal
+      const mobChangePw = document.getElementById('mobChangePassBtn');
+      if(mobChangePw) mobChangePw.addEventListener('click', () => openMobileChangePassword());
     }
 
     if(tabName === 'edit'){
