@@ -218,7 +218,7 @@
   <div id="mobileHeaderRight">
     <button id="mobileUndoBtn" type="button">↩</button>
     <button id="mobileRedoBtn" type="button">↪</button>
-    <button id="mobileDownloadBtn" type="button">⬇ Download</button>
+    <button id="mobileDownloadBtn" type="button">📤 Share</button>
   </div>
 </div>
 
@@ -1266,7 +1266,31 @@
   function fileToDataUrl(file){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(file)})}
   function loadImage(src){return new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=src})}
   function outName(originalName){function cleanText(v){let s=String(v||'').trim().toUpperCase(),out='';for(const ch of s){if((ch>='A'&&ch<='Z')||(ch>='0'&&ch<='9')||ch===' '||ch==='-'||ch==='/')out+=ch}return out.split(' ').filter(Boolean).join(' ')}const product=cleanText(el.productName.value),sku=cleanText(el.productSKU.value);if(product&&sku)return sku+' - '+product+'.jpg';if(product)return product+'.jpg';if(sku)return sku+'.jpg';const dot=String(originalName).lastIndexOf('.');return (dot>0?String(originalName).slice(0,dot):String(originalName))+'-edited.jpg'}
-  function downloadBlob(blob,filename){const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500)}
+  async function downloadBlob(blob, filename){
+    // Mobile — use Web Share API (WhatsApp, Email, Instagram, etc)
+    if(isMobile() && navigator.canShare){
+      try {
+        const file = new File([blob], filename, { type: blob.type || 'image/jpeg' });
+        if(navigator.canShare({ files: [file] })){
+          await navigator.share({
+            files: [file],
+            title: filename.replace(/\.jpg$/i,''),
+          });
+          return;
+        }
+      } catch(err){
+        if(err.name !== 'AbortError') console.warn('Share failed, fallback to download', err);
+        // User cancelled share — don't fall through to download
+        if(err.name === 'AbortError') return;
+      }
+    }
+    // Desktop or share not supported — normal download
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+  }
   const wait=ms=>new Promise(r=>setTimeout(r,ms));
   function clearStage(){el.baseImage.style.display='none';el.baseImage.src='';el.emptyState.style.display='block';el.stageInner.querySelectorAll('.overlay').forEach(n=>n.remove())}
   function deleteImageAt(idx){
@@ -1980,6 +2004,9 @@
 
       case 'export': return `
         <div style="padding:4px 0 12px">
+          <div id="mob_shareTip" style="background:rgba(34,197,94,.08);border:1px solid #22c55e;border-radius:12px;padding:10px 12px;margin-bottom:10px;font-size:12px;color:#86efac;display:none">
+            📤 Tap <b>Share/Download</b> → pilih WhatsApp, Email, Instagram, atau simpan ke galeri!
+          </div>
           <div id="mob_exportCounter" style="background:#0b1220;border:1px solid #334155;border-radius:12px;padding:12px;margin-bottom:14px">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
               <span style="font-size:12px;font-weight:700">Daily Export</span>
@@ -1992,7 +2019,7 @@
           <input id="mob_productName" type="text" placeholder="BLOK SEHER BEAT FI" style="width:100%;background:#0b1220;color:#e5e7eb;border:1px solid #334155;border-radius:10px;padding:10px;margin-bottom:8px;outline:none">
           <label style="font-size:12px;color:#cbd5e1">SKU / Code</label>
           <input id="mob_productSKU" type="text" placeholder="K1A / 5TP / 3C1" style="width:100%;background:#0b1220;color:#e5e7eb;border:1px solid #334155;border-radius:10px;padding:10px;margin-bottom:14px;outline:none">
-          <button type="button" id="mob_downloadCurrentBtn" style="width:100%;background:#f59e0b;color:#111827;border:0;border-radius:12px;padding:14px;font-weight:900;font-size:16px;cursor:pointer;margin-bottom:8px">⬇ Download Image</button>
+          <button type="button" id="mob_downloadCurrentBtn" style="width:100%;background:#f59e0b;color:#111827;border:0;border-radius:12px;padding:14px;font-weight:900;font-size:16px;cursor:pointer;margin-bottom:8px" id="mob_downloadCurrentBtn">📤 Share / Download</button>
           <button type="button" id="mob_downloadAllBtn" style="width:100%;background:#22c55e;color:#052e14;border:0;border-radius:12px;padding:14px;font-weight:900;font-size:16px;cursor:pointer;margin-bottom:8px">⬇ Download All</button>
           <button type="button" id="mob_downloadZipBtn" style="width:100%;background:transparent;color:#e5e7eb;border:1px solid #334155;border-radius:12px;padding:13px;font-weight:700;cursor:pointer">Download ZIP</button>
         </div>`;
@@ -2140,6 +2167,9 @@
 
     if(tabName === 'export'){
       wire('mob_downloadCurrentBtn', 'downloadCurrentBtn');
+      // Show share tip if Web Share API available
+      const shareTip = document.getElementById('mob_shareTip');
+      if(shareTip && navigator.share) shareTip.style.display = 'block';
       wire('mob_downloadAllBtn', 'downloadAllBtn');
       wire('mob_downloadZipBtn', 'downloadZipBtn');
       wire('mob_productName', 'productName', 'text');
