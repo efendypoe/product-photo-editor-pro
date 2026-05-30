@@ -2980,18 +2980,52 @@
     }
   });
 
-  // Swipe down to close
+  // Swipe down to close — only on drag handle, not content area
   (()=>{
     let startY = 0;
+    let startX = 0;
+    let isDraggingHandle = false;
     const sheet = document.getElementById('mobileBottomSheet');
+    const handle = document.getElementById('sheetHandle');
     if(!sheet) return;
-    sheet.addEventListener('touchstart', e => { startY = e.touches[0].clientY; }, {passive:true});
+
+    // Only allow close swipe from the handle or sheet title area
+    const isHandleArea = (target) => {
+      return target.closest('#sheetHandle') ||
+             target.closest('#sheetTitle') ||
+             target === sheet;
+    };
+
+    sheet.addEventListener('touchstart', e => {
+      startY = e.touches[0].clientY;
+      startX = e.touches[0].clientX;
+      isDraggingHandle = isHandleArea(e.target);
+    }, {passive:true});
+
+    sheet.addEventListener('touchmove', e => {
+      if(!isDraggingHandle) return;
+      const dy = e.touches[0].clientY - startY;
+      // Visual feedback while dragging handle
+      if(dy > 0) sheet.style.transform = `translateY(${dy}px)`;
+    }, {passive:true});
+
     sheet.addEventListener('touchend', e => {
-      if(e.changedTouches[0].clientY - startY > 60){
+      const dy = e.changedTouches[0].clientY - startY;
+      const dx = Math.abs(e.changedTouches[0].clientX - startX);
+
+      // Reset transform
+      sheet.style.transform = '';
+
+      // Close only if:
+      // 1. Dragging from handle area AND
+      // 2. Moved down more than 80px AND
+      // 3. More vertical than horizontal (not a side scroll)
+      if(isDraggingHandle && dy > 80 && dy > dx){
         sheet.classList.remove('open');
         currentMobileTab = '';
         document.querySelectorAll('.mob-tab').forEach(b => b.classList.remove('active'));
       }
+      isDraggingHandle = false;
     }, {passive:true});
   })();
 
