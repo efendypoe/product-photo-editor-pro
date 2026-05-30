@@ -1440,7 +1440,13 @@
     layer.style.display='block';
     layer.style.background=`radial-gradient(circle at center, rgba(255,255,255,0) 0%, rgba(255,255,255,0) ${safe}%, rgba(255,255,255,${alpha}) ${feather}%, rgba(255,255,255,${alpha}) 100%)`;
   }
-  function applyBaseImageLayout(img){ensurePhotoAdjust(img);ensureImageTransform(img);ensureBgCleanup(img);const nw=el.baseImage.naturalWidth||800,nh=el.baseImage.naturalHeight||800,maxW=1100,_vh=(window.screen&&window.screen.height>100?window.screen.height:window.innerHeight),maxH=Math.max(420,_vh*.55);let cw,ch,baseScale;const mode=img.transform.mode;
+  function applyBaseImageLayout(img){ensurePhotoAdjust(img);ensureImageTransform(img);ensureBgCleanup(img);const nw=el.baseImage.naturalWidth||800,nh=el.baseImage.naturalHeight||800;
+    // Mobile: constrain to screen width
+    const isMob=window.innerWidth<=1024;
+    const availW=isMob?window.innerWidth-16:1100;
+    const _vh=(window.screen&&window.screen.height>100?window.screen.height:window.innerHeight);
+    const maxW=availW;
+    const maxH=isMob?Math.min(availW,_vh*0.55):Math.max(420,_vh*.55);let cw,ch,baseScale;const mode=img.transform.mode;
     if(mode==='square'||mode==='shopee'||mode==='tokopedia'||mode==='lazada'||mode==='instagram'){
       const s=Math.min(maxW,maxH);cw=s;ch=s;baseScale=Math.min(cw/nw,ch/nh)
     }else if(mode==='tiktok'||mode==='instagram_story'){
