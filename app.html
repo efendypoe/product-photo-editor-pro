@@ -1582,8 +1582,104 @@
   el.undoBtn.addEventListener('click',undo);el.redoBtn.addEventListener('click',redo);el.lockElement.addEventListener('click',()=>{const sel=selectedItem();if(!sel)return alert('Select text/logo first.');save();const next=!sel.locked;state.images.forEach(photo=>{const o=photo.items.find(it=>it.group===sel.group);if(o)o.locked=next});renderImage(state.currentIndex)});
   el.addPresetPack.addEventListener('click',()=>{if(!currentImage()){alert('Upload images first.');return}save();const text1=(el.presetText1.value||'Text 1').trim(),text2=(el.presetText2.value||'Text 2').trim(),text3=(el.presetText3.value||'Text 3').trim(),g1=uid(),g2=uid(),g3=uid();state.images.forEach((photo,idx)=>{photo.items.push({id:idx===state.currentIndex?g1:uid(),group:g1,type:'text',x:50,y:90,scale:100,rotate:0,opacity:45,locked:false,text:text1,fontFamily:'Arial',fontSize:34,align:'center',strokeWidth:0,color:'#fff',strokeColor:'#000',gradientEnabled:false,gradientColor1:'#fff',gradientColor2:'#f59e0b',gradientColor3:'#ff5a00',gradientDirection:'horizontal',shadowColor:'#000',shadowBlur:4,boxWidth:320,boxHeight:55});photo.items.push({id:idx===state.currentIndex?g2:uid(),group:g2,type:'text',x:18,y:90,scale:100,rotate:0,opacity:100,locked:false,text:text2,fontFamily:'Arial',fontSize:28,align:'center',strokeWidth:2,color:'#fff',strokeColor:'#000',gradientEnabled:true,gradientColor1:'#fff',gradientColor2:'#f59e0b',gradientColor3:'#ff5a00',gradientDirection:'horizontal',shadowColor:'#000',shadowBlur:3,boxWidth:210,boxHeight:50});photo.items.push({id:idx===state.currentIndex?g3:uid(),group:g3,type:'text',x:82,y:12,scale:100,rotate:0,opacity:100,locked:false,text:text3,fontFamily:'Arial',fontSize:30,align:'center',strokeWidth:2,color:'#fff',strokeColor:'#000',gradientEnabled:false,gradientColor1:'#fff',gradientColor2:'#f59e0b',gradientColor3:'#ff5a00',gradientDirection:'horizontal',shadowColor:'#000',shadowBlur:4,boxWidth:220,boxHeight:52})});renderImage(state.currentIndex);selectItem(g1,'text');el.statusText.textContent='Preset Pack added.'})
   function showNotice(msg){el.statusText.textContent=msg;el.statusText.style.color='#22c55e';setTimeout(()=>{el.statusText.style.color=''},1200)}
-  el.saveTemplate.addEventListener('click',()=>{const img=currentImage();if(!img)return alert('No photo/template yet.');const slot=el.templateSlot.value||'1';localStorage.setItem('wm_template_'+slot+'_items',JSON.stringify(img.items||[]));localStorage.setItem('wm_template_'+slot+'_adjust',JSON.stringify(img.adjust||{brightness:100,contrast:100,exposure:100}));localStorage.setItem('wm_template_'+slot+'_transform',JSON.stringify(img.transform||{mode:'square',zoom:100,x:50,y:50}));showNotice('TEMPLATE '+slot+' SAVED');alert('TEMPLATE '+slot+' SAVED')});
-  el.loadTemplate.addEventListener('click',()=>{const slot=el.templateSlot.value||'1',saved=localStorage.getItem('wm_template_'+slot+'_items');if(!saved)return alert('No saved template in Template '+slot+'.');save();const items=JSON.parse(saved),adjust=JSON.parse(localStorage.getItem('wm_template_'+slot+'_adjust')||'{"brightness":100,"contrast":100,"exposure":100}'),transform=JSON.parse(localStorage.getItem('wm_template_'+slot+'_transform')||'{"mode":"square","zoom":100,"x":50,"y":50}');state.images.forEach(img=>{img.adjust=JSON.parse(JSON.stringify(adjust));img.transform=JSON.parse(JSON.stringify(transform));img.items=JSON.parse(JSON.stringify(items)).map(it=>({...it,id:uid()}))});state.selectedId=null;state.selectedType=null;renderImage(state.currentIndex);showNotice('TEMPLATE '+slot+' LOADED');alert('TEMPLATE '+slot+' LOADED')});
+  // ===== TEMPLATE SAVE/LOAD via Supabase =====
+  async function saveTemplateToCloud(){
+    const img = currentImage();
+    if(!img) return showToast('Upload foto dulu!', 'error');
+    if(!authUser) return showToast('Login dulu untuk simpan template ke cloud!', 'warning');
+    const slot = el.templateSlot.value || '1';
+    const btn = el.saveTemplate;
+    btn.disabled = true; btn.textContent = 'Saving...';
+
+    const templateData = {
+      user_id: authUser.id,
+      slot: parseInt(slot),
+      items: img.items || [],
+      adjust: img.adjust || {brightness:100,contrast:100,exposure:100},
+      transform: img.transform || {mode:'square',zoom:100,x:50,y:50},
+      updated_at: new Date().toISOString()
+    };
+
+    try {
+      const { error } = await supabaseClient
+        .from('user_templates')
+        .upsert(templateData, { onConflict: 'user_id,slot' });
+
+      if(error) throw error;
+
+      // Also save to localStorage as backup
+      localStorage.setItem('wm_template_'+slot+'_items', JSON.stringify(templateData.items));
+      localStorage.setItem('wm_template_'+slot+'_adjust', JSON.stringify(templateData.adjust));
+      localStorage.setItem('wm_template_'+slot+'_transform', JSON.stringify(templateData.transform));
+
+      showToast('✅ Template '+slot+' tersimpan ke cloud!', 'success');
+      showNotice('TEMPLATE '+slot+' SAVED');
+    } catch(err) {
+      console.warn('Cloud save failed, using localStorage:', err.message);
+      // Fallback to localStorage
+      localStorage.setItem('wm_template_'+slot+'_items', JSON.stringify(img.items||[]));
+      localStorage.setItem('wm_template_'+slot+'_adjust', JSON.stringify(img.adjust||{brightness:100,contrast:100,exposure:100}));
+      localStorage.setItem('wm_template_'+slot+'_transform', JSON.stringify(img.transform||{mode:'square',zoom:100,x:50,y:50}));
+      showToast('Template '+slot+' tersimpan (lokal).', 'info');
+    } finally {
+      btn.disabled = false; btn.textContent = 'Save Template';
+    }
+  }
+
+  async function loadTemplateFromCloud(){
+    const slot = el.templateSlot.value || '1';
+    const btn = el.loadTemplate;
+    btn.disabled = true; btn.textContent = 'Loading...';
+
+    try {
+      let items, adjust, transform;
+
+      // Try cloud first if logged in
+      if(authUser && supabaseClient){
+        const { data, error } = await supabaseClient
+          .from('user_templates')
+          .select('*')
+          .eq('user_id', authUser.id)
+          .eq('slot', parseInt(slot))
+          .single();
+
+        if(!error && data){
+          items = data.items;
+          adjust = data.adjust;
+          transform = data.transform;
+          showToast('✅ Template '+slot+' dimuat dari cloud!', 'success');
+        }
+      }
+
+      // Fallback to localStorage
+      if(!items){
+        const saved = localStorage.getItem('wm_template_'+slot+'_items');
+        if(!saved){ showToast('Template '+slot+' belum ada!', 'warning'); return; }
+        items = JSON.parse(saved);
+        adjust = JSON.parse(localStorage.getItem('wm_template_'+slot+'_adjust')||'{"brightness":100,"contrast":100,"exposure":100}');
+        transform = JSON.parse(localStorage.getItem('wm_template_'+slot+'_transform')||'{"mode":"square","zoom":100,"x":50,"y":50}');
+        showToast('Template '+slot+' dimuat (lokal).', 'info');
+      }
+
+      save();
+      state.images.forEach(img => {
+        img.adjust = JSON.parse(JSON.stringify(adjust));
+        img.transform = JSON.parse(JSON.stringify(transform));
+        img.items = JSON.parse(JSON.stringify(items)).map(it => ({...it, id:uid()}));
+      });
+      state.selectedId = null; state.selectedType = null;
+      renderImage(state.currentIndex);
+      showNotice('TEMPLATE '+slot+' LOADED');
+
+    } catch(err) {
+      showToast('Gagal load template: ' + err.message, 'error');
+    } finally {
+      btn.disabled = false; btn.textContent = 'Load Template';
+    }
+  }
+
+  el.saveTemplate.addEventListener('click', saveTemplateToCloud);
+  el.loadTemplate.addEventListener('click', loadTemplateFromCloud);
   function objectSafeOffset(o){const w=el.stageInner.clientWidth||1000,h=el.stageInner.clientHeight||1000;let ow=160,oh=60;if(o.type==='text'){ow=(o.boxWidth||220)*(o.scale/100);oh=(o.boxHeight||70)*(o.scale/100)}else{ow=Math.min(w*.35,260)*(o.scale/100);oh=ow*.6}return{x:Math.max(3,(ow/2)/w*100+2),y:Math.max(3,(oh/2)/h*100+2)}}
   function snapAxis(axis,value){const sel=selectedItem();if(!sel)return alert('Select text/logo first.');save();const safe=objectSafeOffset(sel);state.images.forEach(photo=>{const o=photo.items.find(it=>it.group===sel.group);if(!o)return;if(axis==='x'){if(value==='left')o.x=safe.x;if(value==='center')o.x=50;if(value==='right')o.x=100-safe.x}if(axis==='y'){if(value==='top')o.y=safe.y;if(value==='center')o.y=50;if(value==='under')o.y=100-safe.y}});renderImage(state.currentIndex)}
   el.posLeft.addEventListener('click',()=>snapAxis('x','left'));el.posHCenter.addEventListener('click',()=>snapAxis('x','center'));el.posRight.addEventListener('click',()=>snapAxis('x','right'));el.posTop.addEventListener('click',()=>snapAxis('y','top'));el.posVCenter.addEventListener('click',()=>snapAxis('y','center'));el.posUnder.addEventListener('click',()=>snapAxis('y','under'));
