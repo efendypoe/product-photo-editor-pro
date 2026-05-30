@@ -2764,15 +2764,45 @@
       wire('mob_presetText2', 'presetText2', 'text');
       wire('mob_presetText3', 'presetText3', 'text');
       // Text case
-      wire('mob_caseUpper', 'caseUpper');
-      wire('mob_caseNormal', 'caseNormal');
+      // Text case — call directly
+      const mobCaseUpper = document.getElementById('mob_caseUpper');
+      const mobCaseNormal = document.getElementById('mob_caseNormal');
+      if(mobCaseUpper) mobCaseUpper.addEventListener('click', () => {
+        const sel = selectedItem();
+        if(!sel || sel.type !== 'text') return showToast('Pilih text dulu!', 'warning');
+        save();
+        state.images.forEach(img => {
+          const it = img.items.find(x => x.group === sel.group && x.type === 'text');
+          if(it) it.text = it.text.toUpperCase();
+        });
+        renderImage(state.currentIndex);
+      });
+      if(mobCaseNormal) mobCaseNormal.addEventListener('click', () => {
+        const sel = selectedItem();
+        if(!sel || sel.type !== 'text') return showToast('Pilih text dulu!', 'warning');
+        save();
+        state.images.forEach(img => {
+          const it = img.items.find(x => x.group === sel.group && x.type === 'text');
+          if(it) it.text = it.text.toLowerCase().split(' ').map(w => w.charAt(0).toUpperCase()+w.slice(1)).join(' ');
+        });
+        renderImage(state.currentIndex);
+      });
       // Quick position
-      wire('mob_posLeft', 'posLeft');
-      wire('mob_posHCenter', 'posHCenter');
-      wire('mob_posRight', 'posRight');
-      wire('mob_posTop', 'posTop');
-      wire('mob_posVCenter', 'posVCenter');
-      wire('mob_posUnder', 'posUnder');
+      // Quick position — call snapAxis directly (more reliable on mobile)
+      const gp = id => document.getElementById(id);
+      const wirePos = (mobId, axis, val) => {
+        const btn = gp(mobId);
+        if(btn) btn.addEventListener('click', () => {
+          if(!selectedItem()) return showToast('Pilih element dulu!', 'warning');
+          snapAxis(axis, val);
+        });
+      };
+      wirePos('mob_posLeft',    'x', 'left');
+      wirePos('mob_posHCenter', 'x', 'center');
+      wirePos('mob_posRight',   'x', 'right');
+      wirePos('mob_posTop',     'y', 'top');
+      wirePos('mob_posVCenter', 'y', 'center');
+      wirePos('mob_posUnder',   'y', 'under');
       // Lock & delete
       wire('mob_lockElement', 'lockElement');
       const mobDel = document.getElementById('mob_deleteElement');
