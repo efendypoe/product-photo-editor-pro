@@ -388,7 +388,18 @@
         <div class="mini" id="aiRemoveBgStatus" style="margin-top:6px;text-align:center"></div>
       </div>
       <div style="height:1px;background:var(--line);margin:14px 0"></div><h2>Image Transform</h2>
-      <label>Canvas Mode</label><select id="canvasMode"><option value="square" selected>1:1 Square</option><option value="original">Original Ratio</option></select>
+      <label>Canvas Mode / Marketplace</label><select id="canvasMode">
+        <option value="square" selected>1:1 Square (Default)</option>
+        <option value="original">Original Ratio</option>
+        <optgroup label="─── Marketplace Presets ───">
+        <option value="shopee">Shopee (1:1 min 500px)</option>
+        <option value="tokopedia">Tokopedia (1:1 min 300px)</option>
+        <option value="tiktok">TikTok Shop (9:16)</option>
+        <option value="lazada">Lazada (1:1 min 600px)</option>
+        <option value="instagram">Instagram Post (1:1)</option>
+        <option value="instagram_story">Instagram Story (9:16)</option>
+        </optgroup>
+      </select>
       <label style="margin-top:10px">Image Zoom</label><div class="row" style="grid-template-columns:1fr 86px;align-items:center"><input id="imageZoom" type="range" min="30" max="250" value="100"><input id="imageZoomInput" type="number" min="30" max="250" value="100"></div><div class="mini" id="imageZoomVal">100%</div>
       <div class="btns" style="margin-top:10px"><button id="centerImage" type="button" class="ghost">Center Image</button><button id="resetImageTransform" type="button" class="ghost">Reset Image</button></div></div>
     </div>
@@ -1413,7 +1424,15 @@
     layer.style.display='block';
     layer.style.background=`radial-gradient(circle at center, rgba(255,255,255,0) 0%, rgba(255,255,255,0) ${safe}%, rgba(255,255,255,${alpha}) ${feather}%, rgba(255,255,255,${alpha}) 100%)`;
   }
-  function applyBaseImageLayout(img){ensurePhotoAdjust(img);ensureImageTransform(img);ensureBgCleanup(img);const nw=el.baseImage.naturalWidth||800,nh=el.baseImage.naturalHeight||800,maxW=1100,_vh=(window.screen&&window.screen.height>100?window.screen.height:window.innerHeight),maxH=Math.max(420,_vh*.55);let cw,ch,baseScale;if(img.transform.mode==='square'){const s=Math.min(maxW,maxH);cw=s;ch=s;baseScale=Math.min(cw/nw,ch/nh)}else{baseScale=Math.min(maxW/nw,maxH/nh,1);cw=Math.round(nw*baseScale);ch=Math.round(nh*baseScale)}const zoom=img.transform.zoom/100,iw=nw*baseScale*zoom,ih=nh*baseScale*zoom;el.stageInner.style.width=cw+'px';el.stageInner.style.height=ch+'px';el.baseImage.style.display='block';el.baseImage.style.width=iw+'px';el.baseImage.style.height=ih+'px';el.baseImage.style.left=(img.transform.x/100*cw-iw/2)+'px';el.baseImage.style.top=(img.transform.y/100*ch-ih/2)+'px';el.baseImage.style.filter=photoFilter(img);updateEdgePreview(img)}
+  function applyBaseImageLayout(img){ensurePhotoAdjust(img);ensureImageTransform(img);ensureBgCleanup(img);const nw=el.baseImage.naturalWidth||800,nh=el.baseImage.naturalHeight||800,maxW=1100,_vh=(window.screen&&window.screen.height>100?window.screen.height:window.innerHeight),maxH=Math.max(420,_vh*.55);let cw,ch,baseScale;const mode=img.transform.mode;
+    if(mode==='square'||mode==='shopee'||mode==='tokopedia'||mode==='lazada'||mode==='instagram'){
+      const s=Math.min(maxW,maxH);cw=s;ch=s;baseScale=Math.min(cw/nw,ch/nh)
+    }else if(mode==='tiktok'||mode==='instagram_story'){
+      // 9:16 ratio
+      ch=Math.min(maxH,maxW*16/9);cw=Math.round(ch*9/16);baseScale=Math.min(cw/nw,ch/nh)
+    }else{
+      baseScale=Math.min(maxW/nw,maxH/nh,1);cw=Math.round(nw*baseScale);ch=Math.round(nh*baseScale)
+    }const zoom=img.transform.zoom/100,iw=nw*baseScale*zoom,ih=nh*baseScale*zoom;el.stageInner.style.width=cw+'px';el.stageInner.style.height=ch+'px';el.baseImage.style.display='block';el.baseImage.style.width=iw+'px';el.baseImage.style.height=ih+'px';el.baseImage.style.left=(img.transform.x/100*cw-iw/2)+'px';el.baseImage.style.top=(img.transform.y/100*ch-ih/2)+'px';el.baseImage.style.filter=photoFilter(img);updateEdgePreview(img)}
   function refreshStage(){const img=currentImage();if(!img)return;applyBaseImageLayout(img);syncPhotoControls();el.stageInner.querySelectorAll('.overlay').forEach(n=>n.remove());img.items.forEach(addOverlay);syncPanel()}
   let mobileHintShown = false;
   function showMobileHint(){
@@ -1486,7 +1505,21 @@
     }
     ctx.putImageData(imgData,0,0);
   }
-  async function exportImageAt(index){const data=state.images[index],base=await loadImage(data.src),canvas=document.createElement('canvas');ensurePhotoAdjust(data);ensureImageTransform(data);const nw=base.naturalWidth||base.width,nh=base.naturalHeight||base.height,outSize=Math.max(nw,nh);canvas.width=data.transform.mode==='square'?outSize:nw;canvas.height=data.transform.mode==='square'?outSize:nh;const ctx=canvas.getContext('2d');ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.filter=photoFilter(data);const baseScale=data.transform.mode==='square'?Math.min(canvas.width/nw,canvas.height/nh):1,drawW=nw*baseScale*(data.transform.zoom/100),drawH=nh*baseScale*(data.transform.zoom/100),drawX=data.transform.x/100*canvas.width-drawW/2,drawY=data.transform.y/100*canvas.height-drawH/2;ctx.drawImage(base,drawX,drawY,drawW,drawH);ctx.filter='none';ensureBgCleanup(data);applyAdvancedBgCleanup(ctx,canvas.width,canvas.height,data.bgCleanup);const ratio=el.stageInner.clientWidth?canvas.width/el.stageInner.clientWidth:1;for(const o of data.items){ctx.save();ctx.translate(o.x/100*canvas.width,o.y/100*canvas.height);ctx.rotate(o.rotate*Math.PI/180);ctx.globalAlpha=o.opacity/100;if(o.type==='text'){ctx.scale(o.scale/100,o.scale/100);ctx.font=`${o.fontSize*ratio}px ${o.fontFamily}`;ctx.textBaseline='middle';ctx.lineJoin='round';ctx.lineWidth=(o.strokeWidth||0)*ratio;ctx.strokeStyle=o.strokeColor||'#000';ctx.shadowColor=o.shadowColor||'#000';ctx.shadowBlur=(o.shadowBlur||0)*ratio;let fill=o.color||'#fff';const bw=(o.boxWidth||200)*ratio,bh=(o.boxHeight||80)*ratio;if(o.gradientEnabled){let x2=bw,y2=0;if(o.gradientDirection==='vertical'){x2=0;y2=bh}else if(o.gradientDirection==='diagonal'){x2=bw;y2=bh}const g=ctx.createLinearGradient(-bw/2,-bh/2,-bw/2+x2,-bh/2+y2);g.addColorStop(0,o.gradientColor1||'#fff');g.addColorStop(.5,o.gradientColor2||'#f59e0b');g.addColorStop(1,o.gradientColor3||'#ff5a00');fill=g}ctx.fillStyle=fill;const lines=String(o.text||'').split('\n'),lh=o.fontSize*ratio*1.1,totalH=lines.length*lh;lines.forEach((line,i)=>{let x=0;if(o.align==='left')x=-bw/2+6*ratio;if(o.align==='right')x=bw/2-6*ratio;ctx.textAlign=o.align||'center';const y=-bh/2+(bh-totalH)/2+i*lh+lh/2;if((o.strokeWidth||0)>0)ctx.strokeText(line,x,y);ctx.fillText(line,x,y)})}else{const logo=await loadImage(o.src);const stageW=el.stageInner.clientWidth||canvas.width;const previewLogoW=Math.min(stageW*.35,260);const logoRatio=previewLogoW/stageW;const drawW2=canvas.width*logoRatio*(o.scale/100);const drawH2=drawW2*((logo.naturalHeight||logo.height)/(logo.naturalWidth||logo.width));ctx.drawImage(logo,-drawW2/2,-drawH2/2,drawW2,drawH2)}ctx.restore()}return await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',.92))}
+  async function exportImageAt(index){const data=state.images[index],base=await loadImage(data.src),canvas=document.createElement('canvas');ensurePhotoAdjust(data);ensureImageTransform(data);const nw=base.naturalWidth||base.width,nh=base.naturalHeight||base.height,outSize=Math.max(nw,nh);const expMode=data.transform.mode;
+    const squareModes=['square','shopee','tokopedia','lazada','instagram'];
+    const portraitModes=['tiktok','instagram_story'];
+    // Set minimum export sizes per marketplace
+    const minSizes={shopee:500,tokopedia:300,lazada:600,instagram:1080,tiktok:1080,instagram_story:1080};
+    const minSize=minSizes[expMode]||0;
+    if(squareModes.includes(expMode)){
+      canvas.width=Math.max(outSize,minSize);
+      canvas.height=Math.max(outSize,minSize);
+    }else if(portraitModes.includes(expMode)){
+      canvas.height=Math.max(outSize,minSize);
+      canvas.width=Math.round(canvas.height*9/16);
+    }else{
+      canvas.width=nw;canvas.height=nh;
+    }const ctx=canvas.getContext('2d');ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.filter=photoFilter(data);const baseScale=(squareModes.includes(expMode)||portraitModes.includes(expMode))?Math.min(canvas.width/nw,canvas.height/nh):1,drawW=nw*baseScale*(data.transform.zoom/100),drawH=nh*baseScale*(data.transform.zoom/100),drawX=data.transform.x/100*canvas.width-drawW/2,drawY=data.transform.y/100*canvas.height-drawH/2;ctx.drawImage(base,drawX,drawY,drawW,drawH);ctx.filter='none';ensureBgCleanup(data);applyAdvancedBgCleanup(ctx,canvas.width,canvas.height,data.bgCleanup);const ratio=el.stageInner.clientWidth?canvas.width/el.stageInner.clientWidth:1;for(const o of data.items){ctx.save();ctx.translate(o.x/100*canvas.width,o.y/100*canvas.height);ctx.rotate(o.rotate*Math.PI/180);ctx.globalAlpha=o.opacity/100;if(o.type==='text'){ctx.scale(o.scale/100,o.scale/100);ctx.font=`${o.fontSize*ratio}px ${o.fontFamily}`;ctx.textBaseline='middle';ctx.lineJoin='round';ctx.lineWidth=(o.strokeWidth||0)*ratio;ctx.strokeStyle=o.strokeColor||'#000';ctx.shadowColor=o.shadowColor||'#000';ctx.shadowBlur=(o.shadowBlur||0)*ratio;let fill=o.color||'#fff';const bw=(o.boxWidth||200)*ratio,bh=(o.boxHeight||80)*ratio;if(o.gradientEnabled){let x2=bw,y2=0;if(o.gradientDirection==='vertical'){x2=0;y2=bh}else if(o.gradientDirection==='diagonal'){x2=bw;y2=bh}const g=ctx.createLinearGradient(-bw/2,-bh/2,-bw/2+x2,-bh/2+y2);g.addColorStop(0,o.gradientColor1||'#fff');g.addColorStop(.5,o.gradientColor2||'#f59e0b');g.addColorStop(1,o.gradientColor3||'#ff5a00');fill=g}ctx.fillStyle=fill;const lines=String(o.text||'').split('\n'),lh=o.fontSize*ratio*1.1,totalH=lines.length*lh;lines.forEach((line,i)=>{let x=0;if(o.align==='left')x=-bw/2+6*ratio;if(o.align==='right')x=bw/2-6*ratio;ctx.textAlign=o.align||'center';const y=-bh/2+(bh-totalH)/2+i*lh+lh/2;if((o.strokeWidth||0)>0)ctx.strokeText(line,x,y);ctx.fillText(line,x,y)})}else{const logo=await loadImage(o.src);const stageW=el.stageInner.clientWidth||canvas.width;const previewLogoW=Math.min(stageW*.35,260);const logoRatio=previewLogoW/stageW;const drawW2=canvas.width*logoRatio*(o.scale/100);const drawH2=drawW2*((logo.naturalHeight||logo.height)/(logo.naturalWidth||logo.width));ctx.drawImage(logo,-drawW2/2,-drawH2/2,drawW2,drawH2)}ctx.restore()}return await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',.92))}
   el.imagesInput.addEventListener('change',async e=>{const files=Array.from(e.target.files||[]);if(!files.length)return;const start=state.images.length;for(const f of files){const src=await fileToDataUrl(f),template=currentImage();state.images.push({name:f.name,src,adjust:template?JSON.parse(JSON.stringify(template.adjust||{brightness:100,contrast:100,exposure:100})):{brightness:100,contrast:100,exposure:100},bgCleanup:template?JSON.parse(JSON.stringify(template.bgCleanup||{enable:false,advanced:false,strength:0,shadow:60,edge:60})):{enable:false,advanced:false,strength:0,shadow:60,edge:60},transform:template?JSON.parse(JSON.stringify(template.transform||{mode:'square',zoom:100,x:50,y:50})):{mode:'square',zoom:100,x:50,y:50},items:template?JSON.parse(JSON.stringify(template.items)).map(it=>({...it,id:uid()})):[]})}el.imgCount.textContent=state.images.length;save();renderThumbs();renderImage(start||0);el.imagesInput.value='';el.statusText.textContent='Images loaded successfully.'})
   el.addTextBtn.addEventListener('click',()=>{if(!currentImage()){alert('Upload images first.');return}save();const group=uid();state.images.forEach((photo,idx)=>photo.items.push({id:idx===state.currentIndex?group:uid(),group,type:'text',x:50,y:50,scale:100,rotate:0,opacity:100,locked:false,text:'Text Here',fontFamily:'Arial',fontSize:42,align:'center',strokeWidth:0,color:'#fff',strokeColor:'#000',gradientEnabled:false,gradientColor1:'#fff',gradientColor2:'#f59e0b',gradientColor3:'#ff5a00',gradientDirection:'horizontal',shadowColor:'#000',shadowBlur:4,boxWidth:160,boxHeight:50}));renderImage(state.currentIndex);selectItem(group,'text')})
   el.addLogoBtn.addEventListener('click',()=>{
@@ -1542,7 +1575,21 @@
   function applyImageTransform(vals){save();state.images.forEach(img=>{ensureImageTransform(img);Object.assign(img.transform,vals)});renderImage(state.currentIndex)}
   function manualImageZoom(){const z=clamp(Number(el.imageZoom.value||100),30,250);state.images.forEach(img=>{ensureImageTransform(img);img.transform.zoom=z});refreshStage()}
   el.bgCleanEnable.addEventListener('change',()=>applyBgCleanup({enable:el.bgCleanEnable.checked}));el.bgAdvancedEnable.addEventListener('change',()=>applyBgCleanup({advanced:el.bgAdvancedEnable.checked,enable:el.bgAdvancedEnable.checked?true:el.bgCleanEnable.checked}));el.bgStrength.addEventListener('input',updateBgCleanupFromSliders);el.bgShadow.addEventListener('input',updateBgCleanupFromSliders);el.bgEdge.addEventListener('input',updateBgCleanupFromSliders);el.bgStrength.addEventListener('change',()=>{save();updateBgCleanupFromSliders()});el.bgShadow.addEventListener('change',()=>{save();updateBgCleanupFromSliders()});el.bgEdge.addEventListener('change',()=>{save();updateBgCleanupFromSliders()});el.bgStrengthInput.addEventListener('keydown',e=>{if(e.key==='Enter')updateBgCleanupFromInputs()});el.bgShadowInput.addEventListener('keydown',e=>{if(e.key==='Enter')updateBgCleanupFromInputs()});el.bgEdgeInput.addEventListener('keydown',e=>{if(e.key==='Enter')updateBgCleanupFromInputs()});el.bgStrengthInput.addEventListener('blur',updateBgCleanupFromInputs);el.bgShadowInput.addEventListener('blur',updateBgCleanupFromInputs);el.bgEdgeInput.addEventListener('blur',updateBgCleanupFromInputs);el.bgReset.addEventListener('click',()=>applyBgCleanup({enable:false,advanced:false,strength:0,shadow:60,edge:60}));
-  el.canvasMode.addEventListener('change',()=>applyImageTransform({mode:el.canvasMode.value,x:50,y:50}));el.imageZoom.addEventListener('input',manualImageZoom);el.imageZoom.addEventListener('change',()=>{save();manualImageZoom()});el.imageZoomInput.addEventListener('keydown',e=>{if(e.key==='Enter')applyImageTransform({zoom:clamp(Number(el.imageZoomInput.value||100),30,250)})});el.imageZoomInput.addEventListener('blur',()=>applyImageTransform({zoom:clamp(Number(el.imageZoomInput.value||100),30,250)}));el.centerImage.addEventListener('click',()=>applyImageTransform({x:50,y:50}));el.resetImageTransform.addEventListener('click',()=>applyImageTransform({mode:'square',zoom:100,x:50,y:50}));
+  el.canvasMode.addEventListener('change',()=>{
+    applyImageTransform({mode:el.canvasMode.value,x:50,y:50});
+    const info = {
+      shopee: '✅ Shopee: min 500×500px export',
+      tokopedia: '✅ Tokopedia: min 300×300px export',
+      tiktok: '✅ TikTok Shop: 9:16 portrait export',
+      lazada: '✅ Lazada: min 600×600px export',
+      instagram: '✅ Instagram Post: 1080×1080px export',
+      instagram_story: '✅ Instagram Story: 9:16 portrait export',
+      square: '1:1 Square canvas',
+      original: 'Original photo ratio'
+    };
+    const infoEl = document.getElementById('canvasModeInfo');
+    if(infoEl) infoEl.textContent = info[el.canvasMode.value] || '';
+  });el.imageZoom.addEventListener('input',manualImageZoom);el.imageZoom.addEventListener('change',()=>{save();manualImageZoom()});el.imageZoomInput.addEventListener('keydown',e=>{if(e.key==='Enter')applyImageTransform({zoom:clamp(Number(el.imageZoomInput.value||100),30,250)})});el.imageZoomInput.addEventListener('blur',()=>applyImageTransform({zoom:clamp(Number(el.imageZoomInput.value||100),30,250)}));el.centerImage.addEventListener('click',()=>applyImageTransform({x:50,y:50}));el.resetImageTransform.addEventListener('click',()=>applyImageTransform({mode:'square',zoom:100,x:50,y:50}));
   if(getAuthEl('loginBtn')) getAuthEl('loginBtn').addEventListener('click', loginAccount);
   if(getAuthEl('registerBtn')) getAuthEl('registerBtn').addEventListener('click', registerAccount);
   if(getAuthEl('logoutBtn')) getAuthEl('logoutBtn').addEventListener('click', ()=>logoutAccount(false));
@@ -2491,8 +2538,14 @@
           <div style="height:1px;background:#334155;margin:14px 0"></div>
           <h3 style="margin:0 0 8px;font-size:13px;color:#94a3b8">CANVAS</h3>
           <select id="mob_canvasMode" style="width:100%;background:#0b1220;color:#e5e7eb;border:1px solid #334155;border-radius:10px;padding:10px;margin-bottom:8px;outline:none">
-            <option value="square" selected>1:1 Square</option>
+            <option value="square" selected>1:1 Square (Default)</option>
             <option value="original">Original Ratio</option>
+            <option value="shopee">🛍 Shopee (1:1)</option>
+            <option value="tokopedia">🟢 Tokopedia (1:1)</option>
+            <option value="tiktok">🎵 TikTok Shop (9:16)</option>
+            <option value="lazada">🔴 Lazada (1:1)</option>
+            <option value="instagram">📸 Instagram Post (1:1)</option>
+            <option value="instagram_story">📱 Instagram Story (9:16)</option>
           </select>
           <label style="font-size:12px;color:#cbd5e1">Zoom</label>
           <input type="range" id="mob_imageZoom" min="30" max="250" value="100" style="width:100%;margin-bottom:10px">
@@ -3004,14 +3057,25 @@
     const mobBtn = document.getElementById('mob_aiRemoveBgBtn');
 
     // Update UI
+    let countTimer = null;
     const setLoading = (loading) => {
-      if(btn){ btn.disabled = loading; btn.textContent = loading ? '⏳ Processing...' : '✨ AI Remove Background'; }
-      if(mobBtn){ mobBtn.disabled = loading; mobBtn.textContent = loading ? '⏳ Processing...' : '✨ AI Remove Background'; }
-      if(statusEl) statusEl.textContent = loading ? 'Menghapus background dengan AI...' : '';
+      if(!loading && countTimer){ clearInterval(countTimer); countTimer = null; }
+      if(btn){ btn.disabled = loading; btn.textContent = loading ? '⏳ AI Processing...' : '✨ AI Remove Background'; }
+      if(mobBtn){ mobBtn.disabled = loading; mobBtn.textContent = loading ? '⏳ AI Processing...' : '✨ AI Remove Background'; }
+      if(statusEl) statusEl.textContent = loading ? '🤖 AI sedang hapus background...' : '';
     };
 
     setLoading(true);
-    showToast('AI sedang memproses foto...', 'info', 8000);
+
+    // Animated tips during loading
+    const tips = ['🤖 AI sedang analisa foto...','✂️ Mendeteksi tepi objek...','🎨 Memproses background...','✨ Hampir selesai...'];
+    let tipIdx = 0;
+    showToast(tips[0], 'info', 30000);
+    countTimer = setInterval(() => {
+      tipIdx = (tipIdx + 1) % tips.length;
+      const toastMsg = document.querySelector('.toast.info .toast-msg');
+      if(toastMsg) toastMsg.textContent = tips[tipIdx];
+    }, 2500);
 
     try {
       // Convert current image src to blob
