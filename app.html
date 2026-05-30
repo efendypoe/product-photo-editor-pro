@@ -3082,16 +3082,35 @@
       const response = await fetch(img.src);
       const blob = await response.blob();
 
-      // Send to rembg server
+      // Send to rembg server with retry (max 2x)
       const formData = new FormData();
       formData.append('file', blob, 'image.jpg');
 
-      const res = await fetch(REMBG_SERVER + '/remove-bg', {
-        method: 'POST',
-        body: formData
-      });
-
-      if(!res.ok) throw new Error('Server error: ' + res.status);
+      let res = null;
+      let lastErr = null;
+      for(let attempt = 1; attempt <= 2; attempt++){
+        try {
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 60000); // 60s timeout
+          res = await fetch(REMBG_SERVER + '/remove-bg', {
+            method: 'POST',
+            body: formData,
+            signal: controller.signal
+          });
+          clearTimeout(timeout);
+          if(res.ok) break;
+          lastErr = new Error('Server error: ' + res.status);
+        } catch(fetchErr) {
+          lastErr = fetchErr;
+          if(attempt < 2){
+            // Update toast untuk retry
+            const toastMsg = document.querySelector('.toast.info .toast-msg');
+            if(toastMsg) toastMsg.textContent = '🔄 Mencoba ulang... (attempt ' + (attempt+1) + '/2)';
+            await new Promise(r => setTimeout(r, 2000));
+          }
+        }
+      }
+      if(!res || !res.ok) throw lastErr || new Error('Server tidak dapat dijangkau');
 
       // Get result as blob and convert to data URL
       const resultBlob = await res.blob();
@@ -3113,7 +3132,14 @@
 
     } catch(err) {
       console.error('AI Remove BG error:', err);
-      showToast('Gagal: ' + (err.message || 'Server tidak dapat dijangkau'), 'error', 6000);
+      console.error('AI Remove BG error:', err);
+      const isTimeout = err.name === 'AbortError';
+      const isNetwork = err.message?.includes('Failed to fetch') || err.message?.includes('NetworkError');
+      let errMsg = '❌ AI Remove BG gagal.';
+      if(isTimeout) errMsg = '⏱ Timeout — server terlalu lama merespons. Coba lagi.';
+      else if(isNetwork) errMsg = '📡 Tidak dapat terhubung ke server AI. Pastikan server aktif.';
+      else errMsg = '❌ Error: ' + (err.message || 'Server tidak dapat dijangkau');
+      showToast(errMsg, 'error', 8000);
     } finally {
       setLoading(false);
     }
