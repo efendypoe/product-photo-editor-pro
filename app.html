@@ -1200,12 +1200,90 @@
           </button>
         </div>
 
+        <!-- Promo Code -->
+        <div style="margin-top:16px;border-top:1px solid #1e293b;padding-top:16px">
+          <div style="font-size:12px;color:#94a3b8;margin-bottom:8px">🎫 Punya kode promo?</div>
+          <div style="display:flex;gap:8px">
+            <input id="promoCodeInput" type="text" placeholder="Masukkan kode promo" 
+              style="flex:1;background:#0b1220;color:#e5e7eb;border:1px solid #334155;border-radius:10px;padding:10px;outline:none;font-size:13px;text-transform:uppercase">
+            <button id="applyPromoBtn" type="button" 
+              style="background:#f59e0b;color:#111827;border:0;border-radius:10px;padding:10px 16px;font-weight:900;font-size:13px;cursor:pointer">
+              Apply
+            </button>
+          </div>
+          <div id="promoMsg" style="font-size:12px;margin-top:6px;display:none"></div>
+        </div>
+
         <button id="closePlanPopup" type="button" style="width:100%;margin-top:18px;border:1px solid #334155;background:transparent;color:#cbd5e1;border-radius:14px;padding:12px;font-weight:800;cursor:pointer">Cancel</button>
       </div>
     `;
 
     document.body.appendChild(div);
     document.getElementById('closePlanPopup').onclick = () => div.remove();
+
+    // Promo code handler
+    const PROMO_CODES = {
+      'PRODUCTHUNT2026': { months: 1, label: '1 bulan Pro GRATIS!' },
+      'LAUNCH2026': { months: 1, label: '1 bulan Pro GRATIS!' },
+    };
+
+    document.getElementById('applyPromoBtn').addEventListener('click', async () => {
+      const code = document.getElementById('promoCodeInput').value.trim().toUpperCase();
+      const promoMsg = document.getElementById('promoMsg');
+      const promo = PROMO_CODES[code];
+
+      if(!promo){
+        promoMsg.style.display = 'block';
+        promoMsg.style.color = '#ef4444';
+        promoMsg.textContent = '❌ Kode promo tidak valid.';
+        return;
+      }
+
+      // Apply promo — activate Pro for X months
+      const applyBtn = document.getElementById('applyPromoBtn');
+      applyBtn.disabled = true;
+      applyBtn.textContent = 'Applying...';
+
+      try {
+        const expired_at = new Date(Date.now() + promo.months * 30 * 24 * 60 * 60 * 1000).toISOString();
+        const { error } = await supabaseClient
+          .from('user_subscriptions')
+          .upsert({
+            user_id: authUser.id,
+            plan: 'pro',
+            status: 'active',
+            expired_at
+          }, { onConflict: 'user_id' });
+
+        if(error) throw error;
+
+        promoMsg.style.display = 'block';
+        promoMsg.style.color = '#22c55e';
+        promoMsg.textContent = '✅ ' + promo.label + ' Selamat!';
+
+        // Refresh plan
+        await refreshAccountPlanFromSubscription();
+        updateAuthUI();
+        syncMobileAuth();
+
+        setTimeout(() => {
+          div.remove();
+          showToast('🎉 Promo berhasil! Selamat menikmati Pro ' + promo.months + ' bulan!', 'success', 6000);
+        }, 1500);
+
+      } catch(err) {
+        promoMsg.style.display = 'block';
+        promoMsg.style.color = '#ef4444';
+        promoMsg.textContent = '❌ Gagal apply promo: ' + err.message;
+        applyBtn.disabled = false;
+        applyBtn.textContent = 'Apply';
+      }
+    });
+
+    // Auto uppercase promo input
+    document.getElementById('promoCodeInput').addEventListener('input', (e) => {
+      e.target.value = e.target.value.toUpperCase();
+    });
     div.addEventListener('click', (e)=>{ if(e.target === div) div.remove(); });
     document.getElementById('chooseMonthly').onclick = () => { div.remove(); buyPro('monthly'); };
     document.getElementById('chooseYearly').onclick = () => { div.remove(); buyPro('yearly'); };
