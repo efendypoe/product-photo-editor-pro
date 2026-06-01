@@ -3418,58 +3418,83 @@ ctx.shadowBlur=_shadowBlur;ctx.shadowColor=_shadowColor;ctx.fillStyle=fill;lines
   document.getElementById('aiRemoveBgBtn')?.addEventListener('click', aiRemoveBackground);
 
 
-  // ===== AUTO SAVE STATE =====
-  const STATE_KEY = 'epp_editor_state';
+  // ===== AUTO SAVE STATE via IndexedDB =====
+  const DB_NAME = 'epp_db', DB_VER = 1, STORE = 'editor_state';
+  let _db = null;
 
-  function saveEditorState(){
-    try{
-      // Don't save image src (too large) — save structure only
-      const toSave = {
-        currentIndex: state.currentIndex,
-        images: state.images.map(img => ({
-          ...img,
-          src: img.src ? img.src.substring(0,50)+'...' : null // truncate for check
-        }))
-      };
-      // Only save items/transform/adjust — not full image data
-      const lightweight = {
-        currentIndex: state.currentIndex,
-        imagesMeta: state.images.map(img => ({
-          name: img.name,
-          items: img.items,
-          adjust: img.adjust,
-          transform: img.transform,
-          bgCleanup: img.bgCleanup
-        }))
-      };
-      sessionStorage.setItem(STATE_KEY, JSON.stringify(lightweight));
-    }catch(e){ /* ignore */ }
+  function openDB(){
+    return new Promise((res,rej)=>{
+      if(_db){ res(_db); return; }
+      const req = indexedDB.open(DB_NAME, DB_VER);
+      req.onupgradeneeded = e => e.target.result.createObjectStore(STORE);
+      req.onsuccess = e => { _db=e.target.result; res(_db); };
+      req.onerror = () => rej(req.error);
+    });
   }
 
-  function restoreEditorState(){
+  async function saveEditorState(){
+    if(!state.images.length) return;
     try{
-      const saved = sessionStorage.getItem(STATE_KEY);
-      if(!saved) return false;
-      const data = JSON.parse(saved);
-      if(!data.imagesMeta || !state.images.length) return false;
-      // Restore items/adjust/transform to loaded images
-      data.imagesMeta.forEach((meta, i) => {
-        if(state.images[i]){
-          if(meta.items) state.images[i].items = meta.items;
-          if(meta.adjust) state.images[i].adjust = meta.adjust;
-          if(meta.transform) state.images[i].transform = meta.transform;
-          if(meta.bgCleanup) state.images[i].bgCleanup = meta.bgCleanup;
-        }
+      const db = await openDB();
+      const data = {
+        currentIndex: state.currentIndex,
+        images: state.images.map(img=>({
+          name: img.name,
+          src: img.src,
+          adjust: img.adjust,
+          transform: img.transform,
+          bgCleanup: img.bgCleanup,
+          items: img.items
+        }))
+      };
+      const tx = db.transaction(STORE,'readwrite');
+      tx.objectStore(STORE).put(data,'state');
+    }catch(e){ console.warn('saveEditorState error:',e); }
+  }
+
+  async function restoreEditorState(){
+    try{
+      const db = await openDB();
+      return new Promise(res=>{
+        const tx = db.transaction(STORE,'readonly');
+        const req = tx.objectStore(STORE).get('state');
+        req.onsuccess = async()=>{
+          const data = req.result;
+          if(!data || !data.images || !data.images.length){ res(false); return; }
+          // Restore full state including images
+          state.images = data.images;
+          state.currentIndex = Math.min(data.currentIndex||0, data.images.length-1);
+          el.imgCount.textContent = state.images.length;
+          save();
+          renderThumbs();
+          renderImage(state.currentIndex);
+          showToast('✅ Sesi sebelumnya dipulihkan!', 'success', 3000);
+          res(true);
+        };
+        req.onerror = ()=>res(false);
       });
-      state.currentIndex = Math.min(data.currentIndex||0, state.images.length-1);
-      return true;
     }catch(e){ return false; }
   }
 
-  // Auto save every 3 seconds
-  setInterval(saveEditorState, 3000);
+  async function clearEditorState(){
+    try{
+      const db = await openDB();
+      const tx = db.transaction(STORE,'readwrite');
+      tx.objectStore(STORE).delete('state');
+    }catch(e){}
+  }
+
+  // Auto save every 5 seconds
+  setInterval(saveEditorState, 5000);
   // Save before page unload
-  window.addEventListener('beforeunload', saveEditorState);
+  window.addEventListener('beforeunload', ()=>{ saveEditorState(); });
+
+  // Try restore on load
+  window.addEventListener('load', async()=>{
+    if(!state.images.length){
+      await restoreEditorState();
+    }
+  });
 
   // Expose to global scope (needed for onclick in HTML)
   window.mobileTab = window.mobileTab;
