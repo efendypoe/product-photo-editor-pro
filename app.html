@@ -1490,14 +1490,12 @@
   function ensureTextBox(o){if(!o.boxWidth||!o.boxHeight){const m=minTextBox(o);o.boxWidth=o.boxWidth||m.w;o.boxHeight=o.boxHeight||m.h}}
   function buildBBox(){const box=document.createElement('div');box.className='bbox';['tl','tr','bl','br','ml','mr','mt','mb'].forEach(p=>{const h=document.createElement('div');h.className='handle '+p;h.dataset.handle=p;box.appendChild(h)});const line=document.createElement('div');line.className='handle rotate-line';box.appendChild(line);const r=document.createElement('div');r.className='handle rotate';r.dataset.handle='rotate';box.appendChild(r);return box}
   function drawTextToCanvas(canvas,o){ensureTextBox(o);
-    // Scale canvas resolution based on font size to prevent blur
-    const res=Math.max(1,Math.min(3,Math.ceil(o.fontSize/24)));
-    canvas.width=Math.max(2,Math.round(o.boxWidth)*res);
-    canvas.height=Math.max(2,Math.round(o.boxHeight)*res);
-    canvas.style.width=Math.round(o.boxWidth)+'px';
-    canvas.style.height=Math.round(o.boxHeight)+'px';const ctx=canvas.getContext('2d');ctx.clearRect(0,0,canvas.width,canvas.height);ctx.scale(res,res);ctx.font=`${o.fontSize}px ${o.fontFamily}`;ctx.textBaseline='middle';ctx.lineJoin='round';ctx.lineWidth=Number(o.strokeWidth||0);ctx.strokeStyle=o.strokeColor||'#000';let fill=o.color||'#fff';if(o.gradientEnabled){let x2=canvas.width,y2=0;if(o.gradientDirection==='vertical'){x2=0;y2=canvas.height}else if(o.gradientDirection==='diagonal'){x2=canvas.width;y2=canvas.height}const g=ctx.createLinearGradient(0,0,x2,y2);g.addColorStop(0,o.gradientColor1||'#fff');g.addColorStop(.5,o.gradientColor2||'#f59e0b');g.addColorStop(1,o.gradientColor3||'#ff5a00');fill=g}const lines=String(o.text||'').split('\n'),lh=o.fontSize*1.1,totalH=lines.length*lh;const _shadowBlur=Number(o.shadowBlur||0),_shadowColor=o.shadowColor||'rgba(0,0,0,0.8)';// PASS 1: stroke no shadow
-if((o.strokeWidth||0)>0){ctx.save();ctx.shadowBlur=0;ctx.shadowColor='transparent';lines.forEach((line,i)=>{let x=Math.round(o.boxWidth)/2;if(o.align==='left')x=6;if(o.align==='right')x=Math.round(o.boxWidth)-6;ctx.textAlign=o.align||'center';const y=(Math.round(o.boxHeight)-totalH)/2+i*lh+lh/2;ctx.strokeText(line,x,y);});ctx.restore();}// PASS 2: fill with shadow
-ctx.shadowBlur=_shadowBlur;ctx.shadowColor=_shadowColor;ctx.fillStyle=fill;lines.forEach((line,i)=>{let x=Math.round(o.boxWidth)/2;if(o.align==='left')x=6;if(o.align==='right')x=Math.round(o.boxWidth)-6;ctx.textAlign=o.align||'center';const y=(Math.round(o.boxHeight)-totalH)/2+i*lh+lh/2;ctx.fillText(line,x,y);});ctx.shadowBlur=0;ctx.shadowColor='transparent';}
+    canvas.width=Math.max(2,Math.round(o.boxWidth));
+    canvas.height=Math.max(2,Math.round(o.boxHeight));
+    canvas.style.width='';
+    canvas.style.height='';const ctx=canvas.getContext('2d');ctx.clearRect(0,0,canvas.width,canvas.height);ctx.font=`${o.fontSize}px ${o.fontFamily}`;ctx.textBaseline='middle';ctx.lineJoin='round';ctx.lineWidth=Number(o.strokeWidth||0);ctx.strokeStyle=o.strokeColor||'#000';let fill=o.color||'#fff';if(o.gradientEnabled){let x2=canvas.width,y2=0;if(o.gradientDirection==='vertical'){x2=0;y2=canvas.height}else if(o.gradientDirection==='diagonal'){x2=canvas.width;y2=canvas.height}const g=ctx.createLinearGradient(0,0,x2,y2);g.addColorStop(0,o.gradientColor1||'#fff');g.addColorStop(.5,o.gradientColor2||'#f59e0b');g.addColorStop(1,o.gradientColor3||'#ff5a00');fill=g}const lines=String(o.text||'').split('\n'),lh=o.fontSize*1.1,totalH=lines.length*lh;const _shadowBlur=Number(o.shadowBlur||0),_shadowColor=o.shadowColor||'rgba(0,0,0,0.8)';// PASS 1: stroke no shadow
+if((o.strokeWidth||0)>0){ctx.save();ctx.shadowBlur=0;ctx.shadowColor='transparent';lines.forEach((line,i)=>{let x=canvas.width/2;if(o.align==='left')x=6;if(o.align==='right')x=canvas.width-6;ctx.textAlign=o.align||'center';const y=(canvas.height-totalH)/2+i*lh+lh/2;ctx.strokeText(line,x,y);});ctx.restore();}// PASS 2: fill with shadow
+ctx.shadowBlur=_shadowBlur;ctx.shadowColor=_shadowColor;ctx.fillStyle=fill;lines.forEach((line,i)=>{let x=canvas.width/2;if(o.align==='left')x=6;if(o.align==='right')x=canvas.width-6;ctx.textAlign=o.align||'center';const y=(canvas.height-totalH)/2+i*lh+lh/2;ctx.fillText(line,x,y);});ctx.shadowBlur=0;ctx.shadowColor='transparent';}
 
   function addOverlay(o){const d=document.createElement('div');d.className='overlay';d.dataset.id=o.id;d.dataset.type=o.type;if(o.type==='text'){const c=document.createElement('canvas');c.className='overlay-text';d.appendChild(c)}else{const i=document.createElement('img');i.className='content-image';i.src=o.src;d.appendChild(i)}d.appendChild(buildBBox());el.stageInner.appendChild(d);updateOverlay(o)}
   function updateOverlay(o){const node=el.stageInner.querySelector(`.overlay[data-id="${o.id}"]`);if(!node||!el.stageInner.clientWidth)return;node.style.left=(o.x/100*el.stageInner.clientWidth)+'px';node.style.top=(o.y/100*el.stageInner.clientHeight)+'px';node.style.opacity=o.opacity/100;node.style.transform=`translate(-50%,-50%) rotate(${o.rotate}deg) scale(${o.scale/100})`;node.style.outline=o.locked?'2px solid #22c55e':'';if(o.type==='text'){const c=node.querySelector('canvas.overlay-text');drawTextToCanvas(c,o);node.style.width=c.width+'px';node.style.height=c.height+'px';c.style.position='';c.style.left='';c.style.top='';c.style.width='';c.style.height='';}else{const i=node.querySelector('img.content-image');i.style.width=Math.min(el.stageInner.clientWidth*.35,260)+'px';i.style.height='auto'}el.stageInner.querySelectorAll('.overlay').forEach(n=>n.classList.toggle('selected',n.dataset.id===state.selectedId))}
@@ -3448,7 +3446,10 @@ ctx.shadowBlur=_shadowBlur;ctx.shadowColor=_shadowColor;ctx.fillStyle=fill;lines
         }))
       };
       const tx = db.transaction(STORE,'readwrite');
-      tx.objectStore(STORE).put(data,'state');
+      await new Promise((res,rej)=>{
+        const req = tx.objectStore(STORE).put(data,'state');
+        req.onsuccess=res; req.onerror=rej;
+      });
     }catch(e){ console.warn('saveEditorState error:',e); }
   }
 
