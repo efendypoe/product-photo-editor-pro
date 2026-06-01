@@ -2843,6 +2843,15 @@ ctx.shadowBlur=_shadowBlur;ctx.shadowColor=_shadowColor;ctx.fillStyle=fill;lines
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:4px">
             <button type="button" id="mob_lockElement" style="background:transparent;color:#e5e7eb;border:1px solid #334155;border-radius:10px;padding:10px;font-weight:700;cursor:pointer;font-size:13px">🔒 Lock</button>
             <button type="button" id="mob_deleteElement" style="background:transparent;color:#ef4444;border:1px solid #ef4444;border-radius:10px;padding:10px;font-weight:700;cursor:pointer;font-size:13px">🗑 Delete</button>
+
+          <!-- Logo opacity - only shown when logo selected -->
+          <div id="mob_logoOpacityRow" style="display:none;width:100%;margin-top:8px">
+            <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+              <span style="font-size:12px;color:#94a3b8;font-weight:700">LOGO OPACITY</span>
+              <span id="mob_logoOpacityVal2" style="font-size:12px;font-weight:900;color:#f59e0b">60%</span>
+            </div>
+            <input id="mob_logoOpacity2" type="range" min="5" max="100" value="60" style="width:100%;accent-color:#f59e0b;cursor:pointer;height:28px">
+          </div>
           </div>
         </div>`;
 
@@ -3055,6 +3064,43 @@ ctx.shadowBlur=_shadowBlur;ctx.shadowColor=_shadowColor;ctx.fillStyle=fill;lines
       wirePos('mob_posUnder',   'y', 'under');
       // Lock & delete
       wire('mob_lockElement', 'lockElement');
+
+      // Logo opacity in Edit tab
+      const mobLogoOpa2 = document.getElementById('mob_logoOpacity2');
+      const mobLogoOpaVal2 = document.getElementById('mob_logoOpacityVal2');
+      const mobLogoOpaRow = document.getElementById('mob_logoOpacityRow');
+
+      // Show/hide opacity row based on selected element type
+      const origSyncPanel = syncPanel;
+      syncPanel = function(){
+        origSyncPanel();
+        const sel = selectedItem();
+        if(mobLogoOpaRow){
+          if(sel && sel.type === 'logo'){
+            mobLogoOpaRow.style.display = 'block';
+            if(mobLogoOpa2) mobLogoOpa2.value = sel.opacity || 60;
+            if(mobLogoOpaVal2) mobLogoOpaVal2.textContent = (sel.opacity||60) + '%';
+          } else {
+            mobLogoOpaRow.style.display = 'none';
+          }
+        }
+      };
+
+      if(mobLogoOpa2){
+        mobLogoOpa2.addEventListener('input', () => {
+          const val = parseInt(mobLogoOpa2.value);
+          if(mobLogoOpaVal2) mobLogoOpaVal2.textContent = val + '%';
+          const sel = selectedItem();
+          if(sel && sel.type === 'logo'){
+            state.images.forEach(img => {
+              const it = img.items.find(x => x.group === sel.group && x.type === 'logo');
+              if(it) it.opacity = val;
+            });
+            renderImage(state.currentIndex);
+          }
+        });
+        mobLogoOpa2.addEventListener('change', () => save());
+      }
       const mobDel = document.getElementById('mob_deleteElement');
       if(mobDel) mobDel.addEventListener('click', () => {
         // Trigger delete via keyboard Delete key on window
@@ -3543,6 +3589,132 @@ ctx.shadowBlur=_shadowBlur;ctx.shadowColor=_shadowColor;ctx.fillStyle=fill;lines
       await restoreEditorState();
     }
   });
+
+
+  // ===== ONBOARDING TOUR =====
+  const TOUR_KEY = 'epp_tour_done';
+
+  function startOnboardingTour(){
+    if(localStorage.getItem(TOUR_KEY)) return; // already seen
+
+    const steps = [
+      {
+        title: '📸 Upload Foto Produk',
+        desc: 'Klik <b>Choose Files</b> atau tab <b>Image</b> untuk upload foto produk kamu. Bisa multiple foto sekaligus!',
+        target: 'imagesInput',
+        pos: 'bottom'
+      },
+      {
+        title: '✨ AI Remove Background',
+        desc: 'Hapus background foto otomatis dengan AI — 1 klik langsung background putih bersih siap marketplace!',
+        target: 'aiRemoveBgBtn',
+        pos: 'top'
+      },
+      {
+        title: '🏷️ Tambah Text & Logo',
+        desc: 'Klik <b>+ Text</b> untuk tambah teks watermark. Klik <b>+ Logo</b> untuk tambah logo toko kamu.',
+        target: 'addTextBtn',
+        pos: 'top'
+      },
+      {
+        title: '📐 Canvas Marketplace',
+        desc: 'Pilih preset canvas sesuai marketplace — Shopee, Tokopedia, TikTok Shop, dan lainnya.',
+        target: 'canvasMode',
+        pos: 'bottom'
+      },
+      {
+        title: '⬇️ Export & Download',
+        desc: 'Klik <b>Download Image</b> untuk download foto. Atau <b>Download ZIP</b> untuk semua foto sekaligus!',
+        target: 'downloadCurrentBtn',
+        pos: 'top'
+      }
+    ];
+
+    let currentStep = 0;
+
+    // Create overlay
+    const overlay = document.createElement('div');
+    overlay.id = 'tourOverlay';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:99998;pointer-events:none';
+    document.body.appendChild(overlay);
+
+    // Create tooltip
+    const tooltip = document.createElement('div');
+    tooltip.id = 'tourTooltip';
+    tooltip.style.cssText = 'position:fixed;z-index:99999;background:#0b1220;border:2px solid #f59e0b;border-radius:16px;padding:16px 18px;max-width:280px;box-shadow:0 8px 32px rgba(0,0,0,.6);pointer-events:auto';
+    document.body.appendChild(tooltip);
+
+    function showStep(i){
+      const step = steps[i];
+      const total = steps.length;
+
+      // Highlight target element
+      const targetEl = document.getElementById(step.target);
+
+      tooltip.innerHTML = `
+        <div style="font-size:11px;color:#64748b;margin-bottom:8px">LANGKAH ${i+1} DARI ${total}</div>
+        <div style="font-size:15px;font-weight:900;color:#f59e0b;margin-bottom:8px">${step.title}</div>
+        <div style="font-size:13px;color:#e2e8f0;line-height:1.5;margin-bottom:14px">${step.desc}</div>
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <button id="tourSkip" style="background:transparent;color:#64748b;border:0;padding:6px 12px;font-size:12px;cursor:pointer">Skip Tour</button>
+          ${i > 0 ? '<button id="tourPrev" style="background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:8px;padding:6px 14px;font-size:12px;cursor:pointer">← Back</button>' : ''}
+          <button id="tourNext" style="background:#f59e0b;color:#111827;border:0;border-radius:8px;padding:6px 16px;font-size:12px;font-weight:900;cursor:pointer">${i === total-1 ? 'Mulai! 🚀' : 'Next →'}</button>
+        </div>
+      `;
+
+      // Position tooltip near target
+      if(targetEl){
+        targetEl.scrollIntoView({behavior:'smooth', block:'center'});
+        setTimeout(()=>{
+          const rect = targetEl.getBoundingClientRect();
+          const tipH = 180;
+          let top, left;
+          if(step.pos === 'bottom'){
+            top = Math.min(rect.bottom + 12, window.innerHeight - tipH - 10);
+          } else {
+            top = Math.max(rect.top - tipH - 12, 10);
+          }
+          left = Math.max(10, Math.min(rect.left, window.innerWidth - 300));
+          tooltip.style.top = top + 'px';
+          tooltip.style.left = left + 'px';
+          tooltip.style.transform = '';
+        }, 300);
+      } else {
+        // Center on screen
+        tooltip.style.top = '50%';
+        tooltip.style.left = '50%';
+        tooltip.style.transform = 'translate(-50%,-50%)';
+      }
+
+      // Wire buttons
+      document.getElementById('tourNext').onclick = () => {
+        if(i === total - 1) endTour();
+        else showStep(i + 1);
+      };
+      document.getElementById('tourSkip').onclick = endTour;
+      if(i > 0) document.getElementById('tourPrev').onclick = () => showStep(i - 1);
+    }
+
+    function endTour(){
+      tooltip.remove();
+      overlay.remove();
+      localStorage.setItem(TOUR_KEY, '1');
+    }
+
+    // Start after short delay
+    setTimeout(() => showStep(0), 1000);
+  }
+
+  // Start tour on first load
+  window.addEventListener('load', () => {
+    setTimeout(startOnboardingTour, 1500);
+  });
+
+  // Button to restart tour manually
+  window.restartTour = () => {
+    localStorage.removeItem(TOUR_KEY);
+    startOnboardingTour();
+  };
 
   // Expose to global scope (needed for onclick in HTML)
   window.mobileTab = window.mobileTab;
