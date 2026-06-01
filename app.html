@@ -2563,8 +2563,9 @@ ctx.shadowBlur=_shadowBlur;ctx.shadowColor=_shadowColor;ctx.fillStyle=fill;lines
           document.body.appendChild(tip);
         }
         const touch=getTouchPos(e);
-        tip.style.left=(touch.clientX+12)+'px';
-        tip.style.top=(touch.clientY-32)+'px';
+        const stage=el.stageInner.getBoundingClientRect();
+        tip.style.left=(stage.left+stage.width/2-40)+'px';
+        tip.style.top=(stage.top+8)+'px';
         tip.style.opacity='1';
         tip.textContent='Font '+effectiveFontSize+'px';
       }
@@ -2574,7 +2575,20 @@ ctx.shadowBlur=_shadowBlur;ctx.shadowColor=_shadowColor;ctx.fillStyle=fill;lines
 
   window.addEventListener('touchend', e => {
     if(e.touches.length < 2){ pinchStartDist = 0; isPinching = false; }
-    if(state.action){ save(); state.action=null; renderImage(state.currentIndex); }
+    if(state.action){
+      // Update fontSize with effective size after scale drag
+      const finishedItem = currentImage()?.items.find(it => it.id === state.action?.id);
+      if(finishedItem && finishedItem.type==='text' && state.action.mode==='handle' && ['tl','tr','bl','br'].includes(state.action.handle)){
+        const effectiveFontSize = Math.round(finishedItem.fontSize*(finishedItem.scale/100));
+        // Apply effective font size and reset scale to 100
+        state.images.forEach(img => {
+          const o = img.items.find(it => it.group === finishedItem.group && it.type==='text');
+          if(o){ o.fontSize = effectiveFontSize; o.scale = 100; o.boxWidth = null; o.boxHeight = null; }
+        });
+        if(el.fontSize) el.fontSize.value = effectiveFontSize;
+      }
+      save(); state.action=null; renderImage(state.currentIndex);
+    }
     // Hide scale tooltip
     const tip=document.getElementById('scaleTip');
     if(tip) tip.style.opacity='0';
