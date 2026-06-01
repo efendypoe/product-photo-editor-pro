@@ -1532,7 +1532,7 @@
       lines.forEach((line,i)=>{const{x,y}=getXY(i);ctx.strokeText(line,x,y);});
     }
     ctx.shadowColor=o.shadowColor||'#000';
-    ctx.shadowBlur=Number(o.shadowBlur||0);
+    ctx.shadowBlur=Number(o.shadowBlur||0)*dpr;
     ctx.fillStyle=fill;
     lines.forEach((line,i)=>{const{x,y}=getXY(i);ctx.fillText(line,x,y);});
     ctx.shadowBlur=0;ctx.shadowColor='transparent';
