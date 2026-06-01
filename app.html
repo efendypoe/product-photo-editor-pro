@@ -1829,8 +1829,10 @@ ctx.shadowBlur=_shadowBlur;ctx.shadowColor=_shadowColor;ctx.fillStyle=fill;lines
   let lastTapTimeElement = {}; // per element id untuk double tap edit
   let doubleTapTimer = null;
 
+  const _hintShown = new Set();
   function showEditHint(o){
-    // Show small floating hint above selected text element
+    if(_hintShown.has(o.id)) return; // only show once per element
+    _hintShown.add(o.id);
     let hint = document.getElementById('mobEditHint');
     if(!hint){
       hint = document.createElement('div');
