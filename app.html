@@ -3595,126 +3595,167 @@ ctx.shadowBlur=_shadowBlur;ctx.shadowColor=_shadowColor;ctx.fillStyle=fill;lines
   const TOUR_KEY = 'epp_tour_done';
 
   function startOnboardingTour(){
-    if(localStorage.getItem(TOUR_KEY)) return; // already seen
+    if(localStorage.getItem(TOUR_KEY)) return;
 
     const steps = [
       {
         title: '📸 Upload Foto Produk',
-        desc: 'Klik <b>Choose Files</b> atau tab <b>Image</b> untuk upload foto produk kamu. Bisa multiple foto sekaligus!',
+        desc: 'Klik <b>Choose Files</b> untuk upload foto produk kamu. Bisa multiple foto sekaligus!',
         target: 'imagesInput',
-        pos: 'bottom'
+        arrow: 'left'
       },
       {
         title: '✨ AI Remove Background',
         desc: 'Hapus background foto otomatis dengan AI — 1 klik langsung background putih bersih siap marketplace!',
         target: 'aiRemoveBgBtn',
-        pos: 'top'
+        arrow: 'left'
       },
       {
         title: '🏷️ Tambah Text & Logo',
         desc: 'Klik <b>+ Text</b> untuk tambah teks watermark. Klik <b>+ Logo</b> untuk tambah logo toko kamu.',
         target: 'addTextBtn',
-        pos: 'top'
+        arrow: 'left'
       },
       {
         title: '📐 Canvas Marketplace',
         desc: 'Pilih preset canvas sesuai marketplace — Shopee, Tokopedia, TikTok Shop, dan lainnya.',
         target: 'canvasMode',
-        pos: 'bottom'
+        arrow: 'left'
       },
       {
         title: '⬇️ Export & Download',
-        desc: 'Klik <b>Download Image</b> untuk download foto. Atau <b>Download ZIP</b> untuk semua foto sekaligus!',
+        desc: 'Klik <b>Download Image</b> untuk download satu foto, atau <b>Download ZIP</b> untuk semua foto sekaligus!',
         target: 'downloadCurrentBtn',
-        pos: 'top'
+        arrow: 'left'
       }
     ];
 
-    let currentStep = 0;
+    // Highlight pulse style
+    const style = document.createElement('style');
+    style.textContent = `
+      .tour-highlight {
+        outline: 3px solid #f59e0b !important;
+        outline-offset: 4px !important;
+        border-radius: 8px !important;
+        box-shadow: 0 0 0 6px rgba(245,158,11,0.25) !important;
+        position: relative;
+        z-index: 99997;
+      }
+      @keyframes tourPulse {
+        0%,100%{ box-shadow: 0 0 0 4px rgba(245,158,11,0.3); }
+        50%{ box-shadow: 0 0 0 10px rgba(245,158,11,0.1); }
+      }
+      .tour-highlight { animation: tourPulse 1.5s infinite; }
+    `;
+    document.head.appendChild(style);
 
-    // Create overlay
-    const overlay = document.createElement('div');
-    overlay.id = 'tourOverlay';
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:99998;pointer-events:none';
-    document.body.appendChild(overlay);
-
-    // Create tooltip
     const tooltip = document.createElement('div');
     tooltip.id = 'tourTooltip';
-    tooltip.style.cssText = 'position:fixed;z-index:99999;background:#0b1220;border:2px solid #f59e0b;border-radius:16px;padding:16px 18px;max-width:280px;box-shadow:0 8px 32px rgba(0,0,0,.6);pointer-events:auto';
+    tooltip.style.cssText = 'position:fixed;z-index:99999;background:#0b1220;border:2px solid #f59e0b;border-radius:16px;padding:16px 18px;width:260px;box-shadow:0 8px 32px rgba(0,0,0,.7);pointer-events:auto;transition:all 0.3s ease';
     document.body.appendChild(tooltip);
+
+    // Arrow element
+    const arrow = document.createElement('div');
+    arrow.id = 'tourArrow';
+    arrow.style.cssText = 'position:fixed;z-index:99998;pointer-events:none;transition:all 0.3s ease';
+    document.body.appendChild(arrow);
+
+    let prevTarget = null;
 
     function showStep(i){
       const step = steps[i];
       const total = steps.length;
-
-      // Highlight target element
       const targetEl = document.getElementById(step.target);
 
+      // Remove highlight from previous
+      if(prevTarget) prevTarget.classList.remove('tour-highlight');
+      if(targetEl){
+        targetEl.classList.add('tour-highlight');
+        prevTarget = targetEl;
+        targetEl.scrollIntoView({behavior:'smooth', block:'center'});
+      }
+
       tooltip.innerHTML = `
-        <div style="font-size:11px;color:#64748b;margin-bottom:8px">LANGKAH ${i+1} DARI ${total}</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <span style="font-size:11px;color:#64748b;font-weight:700">${i+1} / ${total}</span>
+          <div style="display:flex;gap:3px">${steps.map((_,si)=>`<div style="width:6px;height:6px;border-radius:50%;background:${si===i?'#f59e0b':'#334155'}"></div>`).join('')}</div>
+        </div>
         <div style="font-size:15px;font-weight:900;color:#f59e0b;margin-bottom:8px">${step.title}</div>
-        <div style="font-size:13px;color:#e2e8f0;line-height:1.5;margin-bottom:14px">${step.desc}</div>
-        <div style="display:flex;gap:8px;justify-content:flex-end">
-          <button id="tourSkip" style="background:transparent;color:#64748b;border:0;padding:6px 12px;font-size:12px;cursor:pointer">Skip Tour</button>
-          ${i > 0 ? '<button id="tourPrev" style="background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:8px;padding:6px 14px;font-size:12px;cursor:pointer">← Back</button>' : ''}
-          <button id="tourNext" style="background:#f59e0b;color:#111827;border:0;border-radius:8px;padding:6px 16px;font-size:12px;font-weight:900;cursor:pointer">${i === total-1 ? 'Mulai! 🚀' : 'Next →'}</button>
+        <div style="font-size:13px;color:#e2e8f0;line-height:1.6;margin-bottom:14px">${step.desc}</div>
+        <div style="display:flex;gap:8px;justify-content:space-between;align-items:center">
+          <button id="tourSkip" style="background:transparent;color:#475569;border:0;padding:4px 8px;font-size:11px;cursor:pointer;text-decoration:underline">Skip</button>
+          <div style="display:flex;gap:6px">
+            ${i > 0 ? '<button id="tourPrev" style="background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:8px;padding:7px 14px;font-size:12px;cursor:pointer">← Back</button>' : ''}
+            <button id="tourNext" style="background:linear-gradient(135deg,#f59e0b,#f97316);color:#111827;border:0;border-radius:8px;padding:7px 16px;font-size:12px;font-weight:900;cursor:pointer">${i === total-1 ? '🚀 Mulai!' : 'Next →'}</button>
+          </div>
         </div>
       `;
 
-      // Position tooltip near target
-      if(targetEl){
-        targetEl.scrollIntoView({behavior:'smooth', block:'center'});
-        setTimeout(()=>{
-          const rect = targetEl.getBoundingClientRect();
-          const tipH = 180;
-          let top, left;
-          if(step.pos === 'bottom'){
-            top = Math.min(rect.bottom + 12, window.innerHeight - tipH - 10);
-          } else {
-            top = Math.max(rect.top - tipH - 12, 10);
-          }
-          left = Math.max(10, Math.min(rect.left, window.innerWidth - 300));
-          tooltip.style.top = top + 'px';
-          tooltip.style.left = left + 'px';
-          tooltip.style.transform = '';
-        }, 300);
-      } else {
-        // Center on screen
-        tooltip.style.top = '50%';
-        tooltip.style.left = '50%';
-        tooltip.style.transform = 'translate(-50%,-50%)';
-      }
+      // Position tooltip to the RIGHT of target on desktop
+      setTimeout(()=>{
+        if(!targetEl){ 
+          tooltip.style.top='50%'; tooltip.style.left='50%'; 
+          tooltip.style.transform='translate(-50%,-50%)';
+          arrow.style.display='none';
+          return;
+        }
+        const rect = targetEl.getBoundingClientRect();
+        const tipW = 260, tipH = tooltip.offsetHeight || 200;
+        const isMobile = window.innerWidth <= 1024;
+        let top, left, arrowHtml;
 
-      // Wire buttons
-      document.getElementById('tourNext').onclick = () => {
-        if(i === total - 1) endTour();
-        else showStep(i + 1);
-      };
+        if(!isMobile){
+          // Desktop: tooltip to the RIGHT of target element
+          left = rect.right + 20;
+          // If not enough space on right, go left
+          if(left + tipW > window.innerWidth - 10) left = rect.left - tipW - 20;
+          top = Math.max(10, Math.min(rect.top + rect.height/2 - tipH/2, window.innerHeight - tipH - 10));
+
+          // Arrow pointing LEFT (toward target)
+          const arrowTop = rect.top + rect.height/2;
+          const arrowLeft = left < rect.left ? rect.left - 12 : rect.right + 8;
+          arrow.style.cssText = `position:fixed;z-index:99998;pointer-events:none;top:${arrowTop-8}px;left:${arrowLeft}px;transition:all .3s ease`;
+          arrow.innerHTML = left > rect.right 
+            ? `<div style="width:0;height:0;border-top:8px solid transparent;border-bottom:8px solid transparent;border-right:12px solid #f59e0b"></div>`
+            : `<div style="width:0;height:0;border-top:8px solid transparent;border-bottom:8px solid transparent;border-left:12px solid #f59e0b"></div>`;
+        } else {
+          // Mobile: tooltip above or below
+          left = Math.max(10, Math.min(rect.left, window.innerWidth - tipW - 10));
+          if(rect.top > window.innerHeight/2){
+            top = Math.max(10, rect.top - tipH - 20);
+            arrow.style.cssText = `position:fixed;z-index:99998;pointer-events:none;top:${top+tipH}px;left:${rect.left+rect.width/2-8}px`;
+            arrow.innerHTML = `<div style="width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-top:12px solid #f59e0b"></div>`;
+          } else {
+            top = rect.bottom + 16;
+            arrow.style.cssText = `position:fixed;z-index:99998;pointer-events:none;top:${top-12}px;left:${rect.left+rect.width/2-8}px`;
+            arrow.innerHTML = `<div style="width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-bottom:12px solid #f59e0b"></div>`;
+          }
+        }
+
+        tooltip.style.top = top + 'px';
+        tooltip.style.left = left + 'px';
+        tooltip.style.transform = '';
+      }, 350);
+
+      document.getElementById('tourNext').onclick = () => i === total-1 ? endTour() : showStep(i+1);
       document.getElementById('tourSkip').onclick = endTour;
-      if(i > 0) document.getElementById('tourPrev').onclick = () => showStep(i - 1);
+      if(i > 0) document.getElementById('tourPrev').onclick = () => showStep(i-1);
     }
 
     function endTour(){
+      if(prevTarget) prevTarget.classList.remove('tour-highlight');
       tooltip.remove();
-      overlay.remove();
+      arrow.remove();
+      style.remove();
       localStorage.setItem(TOUR_KEY, '1');
+      showToast('🚀 Selamat menggunakan EditorProductPro!', 'success', 3000);
     }
 
-    // Start after short delay
-    setTimeout(() => showStep(0), 1000);
+    setTimeout(() => showStep(0), 1200);
   }
 
-  // Start tour on first load
-  window.addEventListener('load', () => {
-    setTimeout(startOnboardingTour, 1500);
-  });
-
-  // Button to restart tour manually
-  window.restartTour = () => {
-    localStorage.removeItem(TOUR_KEY);
-    startOnboardingTour();
-  };
+  window.addEventListener('load', () => setTimeout(startOnboardingTour, 1800));
+  window.restartTour = () => { localStorage.removeItem(TOUR_KEY); startOnboardingTour(); };
 
   // Expose to global scope (needed for onclick in HTML)
   window.mobileTab = window.mobileTab;
