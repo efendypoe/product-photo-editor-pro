@@ -2551,13 +2551,22 @@ ctx.shadowBlur=_shadowBlur;ctx.shadowColor=_shadowColor;ctx.fillStyle=fill;lines
     const currentActive = currentImage()?.items.find(it => it.id === state.action.id);
     if(currentActive){
       updateOverlay(currentActive);
-      // Update fontSize display when scale changes via corner handles
       if(currentActive.type==='text' && state.action.mode==='handle' && ['tl','tr','bl','br'].includes(state.action.handle)){
         const effectiveFontSize=Math.round(currentActive.fontSize*(currentActive.scale/100));
         if(el.fontSize) el.fontSize.value=effectiveFontSize;
-        // Also update mobile font size if visible
-        const mobFs=document.getElementById('mob_fontSize');
-        if(mobFs) mobFs.value=effectiveFontSize;
+        // Show floating size tooltip on mobile
+        let tip=document.getElementById('scaleTip');
+        if(!tip){
+          tip=document.createElement('div');
+          tip.id='scaleTip';
+          tip.style.cssText='position:fixed;background:#f59e0b;color:#111;border-radius:8px;padding:4px 10px;font-size:13px;font-weight:900;z-index:99999;pointer-events:none;transition:opacity .2s';
+          document.body.appendChild(tip);
+        }
+        const touch=getTouchPos(e);
+        tip.style.left=(touch.clientX+12)+'px';
+        tip.style.top=(touch.clientY-32)+'px';
+        tip.style.opacity='1';
+        tip.textContent='Font '+effectiveFontSize+'px';
       }
     }
     e.preventDefault();
@@ -2566,6 +2575,9 @@ ctx.shadowBlur=_shadowBlur;ctx.shadowColor=_shadowColor;ctx.fillStyle=fill;lines
   window.addEventListener('touchend', e => {
     if(e.touches.length < 2){ pinchStartDist = 0; isPinching = false; }
     if(state.action){ save(); state.action=null; renderImage(state.currentIndex); }
+    // Hide scale tooltip
+    const tip=document.getElementById('scaleTip');
+    if(tip) tip.style.opacity='0';
   }, { passive:true });
   window.addEventListener('keydown',e=>{const tag=document.activeElement?.tagName?.toLowerCase(),typing=tag==='input'||tag==='textarea'||tag==='select';if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();undo();return}if(!typing&&(e.key==='Delete'||e.key==='Backspace')){if(state.selectedId){e.preventDefault();deleteSelected();return}if(state.images.length){e.preventDefault();save();state.images.splice(state.currentIndex,1);if(state.currentIndex>=state.images.length)state.currentIndex=Math.max(0,state.images.length-1);state.selectedId=null;state.selectedType=null;el.imgCount.textContent=state.images.length;if(state.images.length){renderThumbs();renderImage(state.currentIndex)}else{renderThumbs();clearStage();el.imagesInput.value=''}el.statusText.textContent='Image deleted.'}}});
   el.downloadCurrentBtn.addEventListener('click',async()=>{
