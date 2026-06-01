@@ -2549,7 +2549,17 @@ ctx.shadowBlur=_shadowBlur;ctx.shadowColor=_shadowColor;ctx.fillStyle=fill;lines
     });
 
     const currentActive = currentImage()?.items.find(it => it.id === state.action.id);
-    if(currentActive) updateOverlay(currentActive);
+    if(currentActive){
+      updateOverlay(currentActive);
+      // Update fontSize display when scale changes via corner handles
+      if(currentActive.type==='text' && state.action.mode==='handle' && ['tl','tr','bl','br'].includes(state.action.handle)){
+        const effectiveFontSize=Math.round(currentActive.fontSize*(currentActive.scale/100));
+        if(el.fontSize) el.fontSize.value=effectiveFontSize;
+        // Also update mobile font size if visible
+        const mobFs=document.getElementById('mob_fontSize');
+        if(mobFs) mobFs.value=effectiveFontSize;
+      }
+    }
     e.preventDefault();
   }, { passive:false });
 
